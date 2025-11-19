@@ -60,7 +60,14 @@ Sistema de Control de Acceso Basado en Roles estricto:
 * **Fix:** Corrección de carga de imágenes en inventario y validación de conexión a BD.
 * **Mejora:** Optimización de la API de usuarios para prevenir escalada de privilegios.
 
----
+## 📸 Galería del Sistema
+
+### Vistas del Sistema
+| | |
+|:-------------------------:|:-------------------------:|
+| ![Vista 1](screenshots/Captura%20de%20pantalla%202025-11-18%20192431.png) | ![Vista 2](screenshots/Captura%20de%20pantalla%202025-11-18%20192447.png) |
+| ![Vista 3](screenshots/Captura%20de%20pantalla%202025-11-18%20192503.png) | ![Vista 4](screenshots/Captura%20de%20pantalla%202025-11-18%20192516.png) |
+| ![Vista 5](screenshots/Captura%20de%20pantalla%202025-11-18%20192529.png) | ![Vista 6](screenshots/Captura%20de%20pantalla%202025-11-18%20192552.png) |
 
 ## 🔒 Nota de Confidencialidad
 Este código es propiedad privada del desarrollador y del grupo Agua Viva.
