@@ -1,0 +1,8 @@
+# Archivos de Sistema y Seguridad (NO SUBIR)
+api/db.php
+*.sql
+.env
+.DS_Store
+Thumbs.db
+node_modules/
+vendor/
