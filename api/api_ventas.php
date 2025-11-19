@@ -1,11 +1,16 @@
 <?php
-// api_ventas.php
+// api/api_ventas.php
+// VERSIÓN FINAL: Producción
+
 session_start();
 include 'db.php';
 header('Content-Type: application/json');
 
+// Evitar warnings en JSON
+error_reporting(0);
+
 if (!isset($_SESSION['usuario'])) {
-    echo json_encode(['success' => false, 'message' => 'No autorizado']);
+    echo json_encode(['success' => false, 'message' => 'Sesión expirada.']);
     exit();
 }
 
@@ -13,35 +18,24 @@ $usuario = $_SESSION['usuario'];
 $role = $_SESSION['role'];
 $accion = $_REQUEST['accion'] ?? '';
 $esAdmin = ($role === 'admin' || $role === 'superadmin');
-
-// --- Lógica de Vendedor (Tiendita) ---
-// Obtenemos el nombre real si es un vendedor
 $vendedor_nombre = $_SESSION['vendedor_nombre'] ?? $usuario;
 
-
-// --- ACCIÓN: Listar Historial de Ventas (Todos) ---
-if ($accion === 'listar_ventas') {
-    try {
+try {
+    // --- 1. LISTAR VENTAS (Últimas 100 para velocidad) ---
+    if ($accion === 'listar_ventas') {
         $stmt = $conexion->query("
             SELECT v.*, p.nombre as producto_nombre 
             FROM ventas v
             LEFT JOIN productos p ON v.producto_id = p.id
             ORDER BY v.fecha DESC
-            LIMIT 200
+            LIMIT 100
         ");
-        $ventas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'ventas' => $ventas]);
-    } catch (PDOException $e) {
-        logError("Error en API Ventas (Listar): " . $e->getMessage(), $conexion);
-        echo json_encode(['success' => false, 'message' => 'Error de base de datos']);
+        echo json_encode(['success' => true, 'ventas' => $stmt->fetchAll()]);
+        exit();
     }
-    exit();
-}
 
-// --- ACCIÓN: Listar Deudores (Fiados) (Todos) ---
-if ($accion === 'listar_fiados') {
-    try {
-        // Agrupa por nombre_fiado y suma los totales NO pagados
+    // --- 2. LISTAR DEUDORES ---
+    if ($accion === 'listar_fiados') {
         $stmt = $conexion->query("
             SELECT nombre_fiado, SUM(total) as total_deuda
             FROM ventas
@@ -50,119 +44,87 @@ if ($accion === 'listar_fiados') {
             HAVING total_deuda > 0
             ORDER BY nombre_fiado ASC
         ");
-        $deudores = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'deudores' => $deudores]);
-    } catch (PDOException $e) {
-        logError("Error en API Ventas (Listar Fiados): " . $e->getMessage(), $conexion);
-        echo json_encode(['success' => false, 'message' => 'Error de base de datos']);
+        echo json_encode(['success' => true, 'deudores' => $stmt->fetchAll()]);
+        exit();
     }
-    exit();
-}
 
-// --- ACCIÓN: Pagar Fiado (Todos) ---
-if ($accion === 'pagar_fiado' && !empty($_POST['nombre_fiado'])) {
-    try {
-        $nombre_fiado = $_POST['nombre_fiado'];
-        // Marca todas las deudas de esta persona como pagadas
-        $stmt = $conexion->prepare("
-            UPDATE ventas 
-            SET fiado_pagado = 1 
-            WHERE nombre_fiado = ? AND tipo_pago = 'fiado'
-        ");
-        $stmt->execute([$nombre_fiado]);
-        
-        // Opcional: Registrar este pago en la tabla 'registros'
-        $monto_pagado = $_POST['monto_pagado'] ?? 0; // JS debe enviar esto
-        $regStmt = $conexion->prepare("INSERT INTO registros (tipo, concepto, monto, usuario) VALUES (?, ?, ?, ?)");
-        $regStmt->execute(['ingreso', 'Pago de fiado: ' . $nombre_fiado, $monto_pagado, $vendedor_nombre]);
+    // --- 3. PAGAR DEUDA ---
+    if ($accion === 'pagar_fiado' && !empty($_POST['nombre_fiado'])) {
+        $nombre = $_POST['nombre_fiado'];
+        $monto = $_POST['monto_pagado'] ?? 0;
 
-        echo json_encode(['success' => true]);
-    } catch (PDOException $e) {
-        logError("Error en API Ventas (Pagar Fiado): " . $e->getMessage(), $conexion);
-        echo json_encode(['success' => false, 'message' => 'Error de base de datos']);
-    }
-    exit();
-}
-
-// --- ACCIÓN: Eliminar Venta (Admin/Superadmin) ---
-// (*** LÓGICA DE DEVOLUCIÓN DE STOCK IMPLEMENTADA ***)
-if ($accion === 'eliminar_venta' && $esAdmin && !empty($_POST['id'])) {
-    
-    $venta_id = $_POST['id'];
-    
-    try {
-        // Iniciar transacción
         $conexion->beginTransaction();
+        
+        // Marcar ventas como pagadas
+        $stmt = $conexion->prepare("UPDATE ventas SET fiado_pagado = 1 WHERE nombre_fiado = ? AND tipo_pago = 'fiado'");
+        $stmt->execute([$nombre]);
 
-        // 1. Obtener los datos de la venta que se va a eliminar
-        $stmtVenta = $conexion->prepare("SELECT producto_id, cantidad FROM ventas WHERE id = ?");
-        $stmtVenta->execute([$venta_id]);
-        $venta = $stmtVenta->fetch(PDO::FETCH_ASSOC);
+        // Registrar ingreso de dinero en caja
+        $stmtReg = $conexion->prepare("INSERT INTO registros (tipo, concepto, monto, usuario, fecha) VALUES ('ingreso', ?, ?, ?, datetime('now', 'localtime'))");
+        $stmtReg->execute(['Pago de fiado: ' . $nombre, $monto, $vendedor_nombre]);
+
+        $conexion->commit();
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    // --- 4. ELIMINAR VENTA (Solo Admins - Devuelve Stock) ---
+    if ($accion === 'eliminar_venta' && $esAdmin) {
+        $id = $_POST['id'];
+        
+        $conexion->beginTransaction();
+        
+        // Obtener cantidad para devolver
+        $stmtGet = $conexion->prepare("SELECT producto_id, cantidad FROM ventas WHERE id = ?");
+        $stmtGet->execute([$id]);
+        $venta = $stmtGet->fetch();
 
         if ($venta) {
-            $producto_id = $venta['producto_id'];
-            $cantidad_devuelta = $venta['cantidad'];
-
-            // 2. Devolver el stock al producto
+            // Devolver stock
             $stmtStock = $conexion->prepare("UPDATE productos SET stock = stock + ? WHERE id = ?");
-            $stmtStock->execute([$cantidad_devuelta, $producto_id]);
+            $stmtStock->execute([$venta['cantidad'], $venta['producto_id']]);
         }
         
-        // 3. Eliminar la venta
-        $stmtDelete = $conexion->prepare("DELETE FROM ventas WHERE id = ?");
-        $stmtDelete->execute([$venta_id]);
+        // Borrar registro
+        $stmtDel = $conexion->prepare("DELETE FROM ventas WHERE id = ?");
+        $stmtDel->execute([$id]);
 
-        // 4. Confirmar la transacción
         $conexion->commit();
-        
         echo json_encode(['success' => true]);
-
-    } catch (PDOException $e) {
-        // Si algo falla, revertir todo
-        $conexion->rollBack();
-        logError("Error en API Ventas (Eliminar con Devolución): " . $e->getMessage(), $conexion);
-        echo json_encode(['success' => false, 'message' => 'Error al eliminar la venta: ' . $e->getMessage()]);
-    }
-    exit();
-}
-
-
-// --- ACCIÓN: Crear Venta (Default) ---
-$data = json_decode(file_get_contents('php://input'), true);
-$carrito = $data['carrito'] ?? null;
-$tipo_pago = $data['tipo_pago'] ?? 'pagado';
-$nombre_fiado = ($tipo_pago === 'fiado' && isset($data['nombre_fiado'])) ? $data['nombre_fiado'] : null;
-
-if (!$carrito || empty($carrito)) {
-    echo json_encode(['success' => false, 'message' => 'Carrito vacío.']);
-    exit();
-}
-
-try {
-    $conexion->beginTransaction();
-    $ventaStmt = $conexion->prepare(
-        "INSERT INTO ventas (producto_id, cantidad, total, vendedor, foto_referencia, tipo_pago, nombre_fiado) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    );
-    $stockStmt = $conexion->prepare("UPDATE productos SET stock = stock - ? WHERE id = ?");
-
-    foreach ($carrito as $item) {
-        $producto_id = $item['id'];
-        $cantidad = $item['cantidad'];
-        $total = $item['precio'] * $cantidad;
-        $foto = $item['foto'];
-        
-        // Usamos el nombre real del vendedor
-        $ventaStmt->execute([$producto_id, $cantidad, $total, $vendedor_nombre, $foto, $tipo_pago, $nombre_fiado]);
-        $stockStmt->execute([$cantidad, $producto_id]);
+        exit();
     }
 
-    $conexion->commit();
-    echo json_encode(['success' => true]);
+    // --- 5. NUEVA VENTA (Procesar Carrito) ---
+    $input = json_decode(file_get_contents('php://input'), true);
+    if ($input) {
+        $carrito = $input['carrito'] ?? [];
+        if (empty($carrito)) {
+            echo json_encode(['success' => false, 'message' => 'Carrito vacío']);
+            exit();
+        }
 
-} catch (PDOException $e) {
-    $conexion->rollBack();
-    logError("Error en API Ventas (Crear): " . $e->getMessage(), $conexion);
-    echo json_encode(['success' => false, 'message' => 'Error al procesar la venta: ' . $e->getMessage()]);
+        $tipo = $input['tipo_pago'];
+        $fiadoA = ($tipo === 'fiado') ? $input['nombre_fiado'] : null;
+
+        $conexion->beginTransaction();
+
+        $stmtVenta = $conexion->prepare("INSERT INTO ventas (producto_id, cantidad, total, vendedor, foto_referencia, tipo_pago, nombre_fiado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))");
+        $stmtStock = $conexion->prepare("UPDATE productos SET stock = stock - ? WHERE id = ?");
+
+        foreach ($carrito as $item) {
+            $total = $item['precio'] * $item['cantidad'];
+            $stmtVenta->execute([$item['id'], $item['cantidad'], $total, $vendedor_nombre, $item['foto'], $tipo, $fiadoA]);
+            $stmtStock->execute([$item['cantidad'], $item['id']]);
+        }
+
+        $conexion->commit();
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+} catch (Exception $e) {
+    if ($conexion->inTransaction()) $conexion->rollBack();
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Error venta: ' . $e->getMessage()]);
 }
 ?>

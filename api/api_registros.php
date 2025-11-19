@@ -1,50 +1,55 @@
 <?php
-// api_registros.php
+// api/api_registros.php
+// VERSIÓN FINAL: Producción
+
 session_start();
 include 'db.php';
 header('Content-Type: application/json');
+error_reporting(0);
 
 if (!isset($_SESSION['usuario'])) {
-    echo json_encode(['success' => false, 'message' => 'No autorizado']);
+    echo json_encode(['success' => false, 'message' => 'Sesión expirada.']);
     exit();
 }
 
 $usuario = $_SESSION['usuario'];
 $role = $_SESSION['role'];
 $accion = $_REQUEST['accion'] ?? '';
-
-// PERMISO ACTUALIZADO: Admin y Superadmin pueden modificar
 $esAdmin = ($role === 'admin' || $role === 'superadmin');
 
 try {
-    // Todos los roles pueden listar
+    // --- 1. LISTAR MOVIMIENTOS (Últimos 100) ---
     if ($accion === 'listar') {
-        $stmt = $conexion->query("SELECT * FROM registros ORDER BY fecha DESC LIMIT 100");
-        $registros = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'registros' => $registros]);
-    
-    } else if ($accion === 'crear' && $esAdmin) {
-        $stmt = $conexion->prepare("INSERT INTO registros (tipo, concepto, monto, usuario) VALUES (?, ?, ?, ?)");
-        $stmt->execute([
-            $_POST['tipo'],
-            $_POST['concepto'],
-            $_POST['monto'],
-            $usuario
-        ]);
-        echo json_encode(['success' => true]);
-
-    // NUEVO: Editar y Eliminar Registros
-    } else if ($accion === 'eliminar' && $esAdmin) {
-        $stmt = $conexion->prepare("DELETE FROM registros WHERE id = ?");
-        $stmt->execute([$_POST['id']]);
-        echo json_encode(['success' => true]);
-        
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Acción no válida o no autorizada']);
+        $stmt = $conexion->query("SELECT * FROM registros ORDER BY id DESC LIMIT 100");
+        echo json_encode(['success' => true, 'registros' => $stmt->fetchAll()]);
+        exit();
     }
 
-} catch (PDOException $e) {
-    logError("Error en API Registros: ". $e->getMessage(), $conexion);
-    echo json_encode(['success' => false, 'message' => 'Error de base de datos']);
+    // --- 2. CREAR REGISTRO ---
+    if ($accion === 'crear' && $esAdmin) {
+        $tipo = $_POST['tipo'];
+        $concepto = $_POST['concepto'];
+        $monto = $_POST['monto'];
+
+        $stmt = $conexion->prepare("INSERT INTO registros (fecha, tipo, concepto, monto, usuario) VALUES (datetime('now', 'localtime'), ?, ?, ?, ?)");
+        $stmt->execute([$tipo, $concepto, $monto, $usuario]);
+        
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    // --- 3. ELIMINAR REGISTRO ---
+    if ($accion === 'eliminar' && $esAdmin) {
+        $id = $_POST['id'];
+        $stmt = $conexion->prepare("DELETE FROM registros WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Error registros: ' . $e->getMessage()]);
 }
 ?>

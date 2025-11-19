@@ -1,9 +1,9 @@
-/* style.css */
+/* style.css - Versión Corregida de Pestañas v2.5.3 */
 :root {
-    --color-primario: #0d47a1;
-    --color-secundario: #1976d2;
-    --color-acento: #42a5f5;
-    --color-fondo: #f0f2f5;
+    --color-primario: #0d47a1; 
+    --color-secundario: #1976d2; 
+    --color-acento: #42a5f5; 
+    --color-fondo: #f0f2f5; 
     --color-blanco: #ffffff;
     --color-texto: #333333;
     --color-success: #4CAF50;
@@ -28,51 +28,80 @@ body {
 
 /* --- LOGIN --- */
 .login-body {
-    height: 100vh; display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; display: flex; justify-content: center; align-items: center;
     background: linear-gradient(135deg, var(--color-primario), var(--color-acento), #0d47a1);
-    background-size: 400% 400%; animation: gradientBG 15s ease infinite; overflow: auto;
+    background-size: 400% 400%; animation: gradientBG 15s ease infinite; padding: 1rem;
 }
 .login-container {
-    background: var(--color-blanco); padding: 2rem; border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); text-align: center; width: 100%;
+    background-color: #ffffff !important; padding: 2rem; border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); text-align: center; width: 100%;
     max-width: 400px; box-sizing: border-box; animation: zoomIn 0.4s ease-out;
-    position: relative; min-height: 520px;
+    position: relative; min-height: 580px; overflow: hidden; z-index: 10;
 }
-.logo { max-width: 200px; margin-bottom: 1.5rem; }
-.login-container h2 { margin-bottom: 1.5rem; color: var(--color-primario); }
-.login-modo-selector { display: flex; margin-bottom: 1.5rem; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; position: relative; }
-.login-modo-selector .slider { position: absolute; top: 0; left: 0; height: 100%; width: 50%; background-color: var(--color-secundario); z-index: 1; transition: transform 0.3s ease-in-out; }
-.btn-modo { flex: 1; padding: 0.8rem; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: color 0.3s ease-in-out; position: relative; z-index: 2; background-color: transparent; color: #555; }
+.logo { max-width: 180px; margin-bottom: 1.5rem; mix-blend-mode: multiply; }
+.login-modo-selector {
+    display: flex; margin-bottom: 2rem; border: 1px solid #e0e0e0; border-radius: 8px;
+    overflow: hidden; position: relative; background: #f9f9f9; z-index: 20;
+}
+.login-modo-selector .slider {
+    position: absolute; top: 0; left: 0; height: 100%; width: 50%;
+    background-color: var(--color-secundario); z-index: 1;
+    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.btn-modo {
+    flex: 1; padding: 0.8rem; border: none; cursor: pointer; font-size: 0.9rem;
+    font-weight: 500; transition: color 0.3s; position: relative; z-index: 2;
+    background-color: transparent; color: #666;
+}
 .btn-modo.active { color: var(--color-blanco); font-weight: bold; }
-.login-form { position: absolute; top: 190px; left: 0; width: 100%; padding: 0 2rem; box-sizing: border-box; opacity: 0; transition: opacity 0.4s ease-out, transform 0.4s ease-out; transform: translateX(100%); }
+.login-form {
+    position: absolute; top: 220px; left: 0; width: 100%; padding: 0 2rem;
+    box-sizing: border-box; opacity: 0; transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform: translateX(100%); pointer-events: none; z-index: 1;
+}
 .login-form#loginFormAdmin:not(.active) { transform: translateX(-100%); }
-.login-form.active { position: relative; top: 0; opacity: 1; transform: translateX(0); }
+.login-form.active { opacity: 1; transform: translateX(0); pointer-events: auto; z-index: 5; }
 
-/* --- TOP NAVBAR --- */
+/* Inputs */
+.input-group { margin-bottom: 1.2rem; text-align: left; }
+.input-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #444; }
+.input-group input, .input-group select {
+    width: 100%; padding: 0.9rem; border: 2px solid #eee; border-radius: 8px;
+    box-sizing: border-box; transition: all 0.2s; font-size: 1rem; background: #fcfcfc;
+}
+.input-group input:focus, .input-group select:focus {
+    border-color: var(--color-primario); background: #fff; outline: none;
+    box-shadow: 0 4px 10px rgba(13, 71, 161, 0.1);
+}
+.btn {
+    width: 100%; padding: 1rem; border: none; border-radius: 8px;
+    background-color: var(--color-secundario); color: var(--color-blanco);
+    font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s;
+    margin-top: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+.btn:hover { background-color: var(--color-primario); transform: translateY(-2px); }
+
+/* --- NAVBAR --- */
 .top-navbar {
     background: linear-gradient(90deg, var(--color-primario), #1565c0);
     height: 70px; display: flex; align-items: center; justify-content: space-between;
     padding: 0 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); color: white;
-    z-index: 1000; flex-shrink: 0; overflow: hidden; 
+    z-index: 1000; flex-shrink: 0; overflow: hidden;
 }
 .nav-brand { display: flex; align-items: center; gap: 0.5rem; min-width: 200px; }
 .logo-nav {
     height: 55px; background: transparent; padding: 0; border-radius: 0;
-    mix-blend-mode: multiply; filter: brightness(1.1) contrast(1.2); 
+    mix-blend-mode: multiply; filter: brightness(1.1) contrast(1.2);
 }
 .brand-name { font-size: 1.4rem; font-weight: bold; letter-spacing: 0.5px; }
-.nav-menu {
-    display: flex; gap: 0.5rem; height: 100%; align-items: center;
-    overflow: visible; flex-wrap: nowrap;
-}
+.nav-menu { display: flex; gap: 0.5rem; height: 100%; align-items: center; overflow: visible; flex-wrap: nowrap; }
 .nav-item {
     display: flex; align-items: center; gap: 8px; padding: 0.6rem 1.2rem;
     color: rgba(255,255,255, 0.85); text-decoration: none; border-radius: 50px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 500; font-size: 0.95rem;
-    white-space: nowrap; cursor: pointer;
+    transition: all 0.3s; font-weight: 500; font-size: 0.95rem; white-space: nowrap; cursor: pointer;
 }
-.nav-item:hover { background-color: rgba(255,255,255, 0.15); color: white; transform: translateY(-2px); }
-.nav-item.active { background-color: white; color: var(--color-primario); font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: scale(1.05); }
+.nav-item:hover { background-color: rgba(255,255,255, 0.15); transform: translateY(-2px); color:white;}
+.nav-item.active { background-color: white; color: var(--color-primario); font-weight: bold; transform: scale(1.05); }
 .nav-item i { font-size: 1.1rem; }
 .user-menu { display: flex; align-items: center; gap: 1rem; min-width: 150px; justify-content: flex-end; }
 .user-details { text-align: right; line-height: 1.2; }
@@ -81,17 +110,18 @@ body {
 .btn-logout-nav {
     background: #ef5350; color: white; width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center; border-radius: 50%;
-    text-decoration: none; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    text-decoration: none; transition: all 0.3s;
 }
-.btn-logout-nav:hover { background: #d32f2f; transform: rotate(90deg) scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+.btn-logout-nav:hover { background: #d32f2f; transform: rotate(90deg); }
 
-/* --- CONTAINER --- */
+/* --- CONTENEDOR PRINCIPAL --- */
 .main-container {
     flex-grow: 1; padding: 2rem; overflow-y: auto;
     background-color: #f4f7f6; position: relative; height: calc(100vh - 70px);
 }
+.tab-content { max-width: 1400px; margin: 0 auto; }
 
-/* --- HEADERS & UI --- */
+/* --- UI Elements --- */
 .section-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 1.5rem 2rem; border-radius: 12px; margin-bottom: 2rem;
@@ -108,13 +138,6 @@ body {
 .config-header { background: linear-gradient(135deg, var(--color-admin), #9575cd); }
 .septimas-header { background: linear-gradient(135deg, var(--color-septima), #ab47bc); }
 
-.input-group { margin-bottom: 1.2rem; text-align: left; }
-.input-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; }
-.input-group input, .input-group select { width: 100%; padding: 0.8rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; transition: all 0.2s; font-size: 1rem; }
-.input-group input:focus, .input-group select:focus { border-color: var(--color-primario); box-shadow: 0 0 0 3px rgba(13, 71, 161, 0.15); outline: none; }
-.btn { width: 100%; padding: 1rem; border: none; border-radius: 6px; background-color: var(--color-secundario); color: var(--color-blanco); font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.3s ease, transform 0.2s ease; }
-.btn:hover { transform: translateY(-2px); }
-.btn:active { transform: scale(0.98); }
 .btn-primario { background-color: var(--color-secundario); color: white; width: auto; padding: 0.8rem 1.5rem; }
 .btn-primario:hover { background-color: var(--color-primario); }
 .btn-success { background-color: var(--color-success); color: white; width: auto; padding: 0.8rem 1.5rem; }
@@ -122,41 +145,21 @@ body {
 .btn-danger { background-color: var(--color-danger); color: white; width: auto; padding: 0.8rem 1.5rem; }
 .btn-danger:hover { background-color: #c0392b; }
 
-/* --- TABLAS E IMÁGENES --- */
-table {
-    width: 100%; border-collapse: collapse; margin-top: 1.5rem;
-    background: var(--color-blanco); box-shadow: var(--sombra); border-radius: 8px; overflow: hidden;
-}
+table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; background: var(--color-blanco); box-shadow: var(--sombra); border-radius: 8px; overflow: hidden; }
 th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
 th { background-color: #f8f9fa; font-weight: bold; color: #444; text-transform: uppercase; font-size: 0.85rem; }
 tbody tr:hover { background-color: #f1f5f9; }
 
-/* ESTILO DE FOTO DE INVENTARIO (CORREGIDO) */
 .foto-preview {
-    width: 50px; 
-    height: 50px; 
-    object-fit: contain; /* Para que se vea toda la imagen sin recortar */
-    border-radius: 4px; 
-    border: 1px solid #eee;
-    background-color: #fff;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    cursor: zoom-in;
-    display: block;
+    width: 50px; height: 50px; object-fit: contain;
+    border-radius: 4px; border: 1px solid #eee; background: #fff;
+    transition: all 0.3s; cursor: zoom-in;
 }
-/* Efecto Zoom al pasar el mouse */
-.foto-preview:hover { 
-    transform: scale(4); 
-    z-index: 100; 
-    position: relative; 
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    border-color: var(--color-acento);
-}
-
+.foto-preview:hover { transform: scale(4); z-index: 100; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
 .btn-accion-tabla { padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 4px; cursor: pointer; border: none; margin-right: 5px;}
 .btn-editar { color: var(--color-secundario); background: #e3f2fd; }
 .btn-eliminar { color: var(--color-danger); background: #ffebee; }
 
-/* --- VENTAS --- */
 .venta-container { display: flex; flex-wrap: wrap; gap: 2rem; }
 .venta-izquierda { flex: 2; min-width: 400px; }
 .venta-derecha { flex: 1; min-width: 300px; background: var(--color-blanco); padding: 1.5rem; border-radius: 12px; box-shadow: var(--sombra); align-self: flex-start; position: sticky; top: 20px; }
@@ -168,22 +171,25 @@ tbody tr:hover { background-color: #f1f5f9; }
 .resultado-item:hover { background-color: #e3f2fd; color: var(--color-primario); }
 #producto-seleccionado { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; padding: 1rem; border-radius: 6px; margin: 1rem 0; font-weight: bold; }
 
-/* --- PERMISOS & DISPLAY --- */
+.swal2-container { z-index: 99999 !important; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+/* --- PERMISOS (Las reglas que causaban conflicto) --- */
 .admin-only, .superadmin-only { display: none !important; }
 body[data-role="admin"] .admin-only { display: block !important; }
 body[data-role="admin"] th.admin-only, body[data-role="admin"] td.admin-only { display: table-cell !important; }
 body[data-role="superadmin"] .admin-only, body[data-role="superadmin"] .superadmin-only { display: block !important; }
 body[data-role="superadmin"] th.admin-only, body[data-role="superadmin"] td.admin-only, body[data-role="superadmin"] th.superadmin-only, body[data-role="superadmin"] td.superadmin-only { display: table-cell !important; }
 
-/* FIX PESTAÑAS */
-div.tab-content:not(.active) { display: none !important; }
-div.tab-content.active { display: block !important; animation: fadeIn 0.4s ease-in-out; }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-@keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-@media (max-width: 900px) {
-    .brand-name { display: none; } .nav-item span { display: none; } .nav-item { padding: 0.8rem; } .top-navbar { padding: 0 1rem; }
+/* --- REGLA SUPREMA (AQUÍ ESTÁ LA SOLUCIÓN) --- */
+/* Esta regla va AL FINAL y usa alta especificidad para obligar a ocultar las pestañas inactivas */
+body[data-role] div.tab-content:not(.active) {
+    display: none !important;
 }
+
+@media (max-width: 900px) { .brand-name { display: none; } .nav-item span { display: none; } .nav-item { padding: 0.8rem; } .top-navbar { padding: 0 1rem; } }

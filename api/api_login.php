@@ -1,76 +1,68 @@
 <?php
-// api_login.php
+// api/api_login.php
+// VERSIÓN FINAL: Producción
+
 session_start();
 include 'db.php';
 
 header('Content-Type: application/json');
 
+// Evitar warnings de PHP en la respuesta JSON
+error_reporting(0); 
+
 $modo = $_POST['modo'] ?? 'admin';
 
 try {
     if ($modo === 'vendedor') {
-        // --- Lógica de Vendedor (Tiendita) MODIFICADA ---
-        $vendedor_nombre = $_POST['vendedor_nombre'] ?? '';
-        $vendedor_estigma = $_POST['vendedor_estigma'] ?? ''; // (1) CAMBIO: Capturamos estigma
-        $vendedor_padrino = $_POST['vendedor_padrino'] ?? '';
+        // --- LOGIN VENDEDOR (Simple) ---
+        $nombre = trim($_POST['vendedor_nombre'] ?? '');
+        $estigma = $_POST['vendedor_estigma'] ?? '';
+        $padrino = $_POST['vendedor_padrino'] ?? '';
         
-        // (2) CAMBIO: Ya no se pide PIN, se pide estigma
-        if (empty($vendedor_nombre) || empty($vendedor_estigma) || empty($vendedor_padrino)) {
-            echo json_encode(['success' => false, 'message' => 'Todos los campos son requeridos.']);
+        if (empty($nombre) || empty($estigma) || empty($padrino)) {
+            echo json_encode(['success' => false, 'message' => 'Faltan datos del vendedor.']);
             exit();
         }
         
-        // Buscamos al usuario "tienda"
-        $stmt = $conexion->prepare("SELECT * FROM usuarios WHERE username = 'tienda' AND role = 'vendedor'");
-        $stmt->execute();
-        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // (3) CAMBIO: Eliminamos la verificación de contraseña (password_verify)
-        // Ahora solo comprobamos que el usuario "tienda" exista.
-        if ($usuario) {
-            session_regenerate_id(true); 
-            $_SESSION['usuario'] = $usuario['username']; // Usuario interno 'tienda'
-            $_SESSION['role'] = $usuario['role'];
-            
-            // Guardamos los datos extra en la sesión
-            $_SESSION['vendedor_nombre'] = $vendedor_nombre;
-            $_SESSION['vendedor_padrino'] = $vendedor_padrino;
-            $_SESSION['vendedor_estigma'] = $vendedor_estigma; // (4) CAMBIO: Guardamos el estigma
-            
-            echo json_encode(['success' => true]);
-        } else {
-            // (5) CAMBIO: Mensaje de error actualizado
-            logError("Intento de login VENDEDOR fallido (Usuario 'tienda' no encontrado)", $conexion);
-            echo json_encode(['success' => false, 'message' => 'Error de configuración: usuario "tienda" no existe.']);
-        }
+        // Regenerar ID para seguridad de sesión
+        session_regenerate_id(true); 
+        
+        $_SESSION['usuario'] = $nombre;
+        $_SESSION['role'] = 'vendedor';
+        $_SESSION['vendedor_nombre'] = $nombre;
+        $_SESSION['vendedor_padrino'] = $padrino;
+        $_SESSION['vendedor_estigma'] = $estigma;
+        
+        echo json_encode(['success' => true]);
 
     } else {
-        // --- Lógica de Admin / Superadmin (SIN CAMBIOS) ---
-        $username = $_POST['username'] ?? '';
-        $password = $_POST['password'] ?? '';
+        // --- LOGIN ADMIN (Base de Datos) ---
+        $user = trim($_POST['username'] ?? '');
+        $pass = $_POST['password'] ?? '';
 
-        if (empty($username) || empty($password)) {
-            echo json_encode(['success' => false, 'message' => 'Usuario y contraseña son requeridos.']);
+        if (empty($user) || empty($pass)) {
+            echo json_encode(['success' => false, 'message' => 'Campos vacíos.']);
             exit();
         }
 
-        $stmt = $conexion->prepare("SELECT * FROM usuarios WHERE username = ? AND (role = 'admin' OR role = 'superadmin')");
-        $stmt->execute([$username]);
-        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = $conexion->prepare("SELECT id, username, password, role FROM usuarios WHERE username = ? LIMIT 1");
+        $stmt->execute([$user]);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($usuario && password_verify($password, $usuario['password'])) {
-            session_regenerate_id(true); 
-            $_SESSION['usuario'] = $usuario['username'];
-            $_SESSION['role'] = $usuario['role'];
+        if ($data && password_verify($pass, $data['password'])) {
+            session_regenerate_id(true);
+            $_SESSION['usuario'] = $data['username'];
+            $_SESSION['role'] = $data['role'];
             echo json_encode(['success' => true]);
         } else {
-            logError("Intento de login ADMIN/SUPER fallido para: $username", $conexion);
-            echo json_encode(['success' => false, 'message' => 'Usuario o contraseña incorrectos.']);
+            // Retardo de seguridad anti-bruteforce
+            usleep(500000); // 0.5 segundos
+            echo json_encode(['success' => false, 'message' => 'Credenciales incorrectas.']);
         }
     }
 
-} catch (PDOException $e) {
-    logError("Error en API Login: " . $e->getMessage(), $conexion);
-    echo json_encode(['success' => false, 'message' => 'Error en la base de datos.']);
+} catch (Exception $e) {
+    // En producción no mostramos el error exacto al usuario, solo "Error interno"
+    echo json_encode(['success' => false, 'message' => 'Error del sistema de acceso.']);
 }
 ?>
