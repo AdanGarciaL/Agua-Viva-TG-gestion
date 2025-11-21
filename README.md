@@ -4,7 +4,7 @@
 ![Version](https://img.shields.io/badge/Versión-v4.0_Platinum-blue?style=for-the-badge)
 ![Tech](https://img.shields.io/badge/PHP-8.0+-777BB4?style=for-the-badge&logo=php&logoColor=white)
 
-> **Sistema Integral de Punto de Venta y Gestión Financiera para Grupo Agua Viva.**
+> **Sistema Integral de Punto de Venta y Gestión Financiera Agua Viva.**
 > *Estabilidad, Seguridad y Diseño Profesional.*
 
 ---
@@ -38,6 +38,34 @@
 
 ---
 
+## 📸 Galería del Sistema
+
+### 🔐 Acceso y Seguridad
+| Login Seguro | Configuración |
+|:---:|:---:|
+| ![Login](assets/Capturas%20de%20Pantalla/Inicio%20de%20secion.png) | ![Config](assets/Capturas%20de%20Pantalla/configuracion.png) |
+
+### 🛒 Módulos Principales (Modo Oscuro/Claro)
+| Ventas (Dark) | Ventas (Light) |
+|:---:|:---:|
+| ![Ventas Dark](assets/Capturas%20de%20Pantalla/seccion%20ventas%20dark.png) | ![Ventas](assets/Capturas%20de%20Pantalla/Seccion%20ventas.png) |
+
+| Inventario (Dark) | Inventario (Light) |
+|:---:|:---:|
+| ![Inv Dark](assets/Capturas%20de%20Pantalla/inventario%20dark.png) | ![Inv](assets/Capturas%20de%20Pantalla/inventario.png) |
+
+### 💰 Control Financiero
+| Corte de Caja (Dark) | Control de Séptimas |
+|:---:|:---:|
+| ![Caja](assets/Capturas%20de%20Pantalla/registro%20dark.png) | ![Séptimas](assets/Capturas%20de%20Pantalla/septimas%20dark.png) |
+
+### 📊 Reportes Excel
+| Centro de Reportes | Generación Exitosa |
+|:---:|:---:|
+| ![Reportes](assets/Capturas%20de%20Pantalla/reportes%20dark.png) | ![Exito](assets/Capturas%20de%20Pantalla/creacion%20de%20reportes.png) |
+
+---
+
 ## 🛠️ Instalación (Para Desarrolladores)
 
 Si deseas modificar el código fuente:
@@ -45,14 +73,6 @@ Si deseas modificar el código fuente:
 1. Clona el repositorio.
 2. Asegúrate de tener un servidor PHP local (o usa el entorno portable incluido).
 3. La base de datos `database.sqlite` se autogenera en `api/` si no existe.
-
----
-
-## 📸 Capturas
-
-| Punto de Venta | Inventario |
-|:---:|:---:|
-| ![POS](https://via.placeholder.com/400x200/0d47a1/ffffff?text=Ventas+Dark+Mode) | ![Inv](https://via.placeholder.com/400x200/1976d2/ffffff?text=Inventario) |
 
 ---
 © 2025 **Grupo Agua Viva** - Desarrollado por Adan G.
