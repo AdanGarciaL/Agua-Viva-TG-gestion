@@ -1,0 +1,10 @@
+/vendor/
+/webcache/
+/php/
+/locales/
+*.sqlite
+*.log
+debug_log.txt
+settings.json
+*.exe
+*.iss
