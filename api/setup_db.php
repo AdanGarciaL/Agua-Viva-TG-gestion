@@ -1,16 +1,28 @@
 <?php
 // api/setup_db.php
-// INSTALADOR AUTOMÁTICO (Con Ejemplos y Configuración)
+// INSTALADOR AUTOMÁTICO (usa DB_PATH central desde config.php)
 
-$db_file = __DIR__ . '/database.sqlite';
+// Cargar configuración global para obtener DB_PATH
+require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'config.php';
+
+$db_file = defined('DB_PATH') ? DB_PATH : (dirname(__DIR__) . DIRECTORY_SEPARATOR . 'database.sqlite');
 $existe = file_exists($db_file);
+
+// Asegurar carpeta
+$db_dir = dirname($db_file);
+if (!is_dir($db_dir)) @mkdir($db_dir, 0777, true);
 
 try {
     $pdo = new PDO("sqlite:$db_file");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     if (!$existe) {
-        echo "<h1>Iniciando Instalación...</h1>";
+        // Salida amigable pero segura: si se ejecuta por CLI o por navegador
+        if (php_sapi_name() === 'cli') {
+            echo "Iniciando instalación (CLI)...\n";
+        } else {
+            echo "<h1>Iniciando Instalación...</h1>";
+        }
 
         // 1. TABLA USUARIOS
         $pdo->exec("CREATE TABLE IF NOT EXISTS usuarios (
@@ -22,7 +34,6 @@ try {
         // Superadmin: AdanGL / Agl252002
         $passHash = password_hash("Agl252002", PASSWORD_DEFAULT);
         $pdo->exec("INSERT OR IGNORE INTO usuarios (username, password, role) VALUES ('AdanGL', '$passHash', 'superadmin')");
-        echo "✅ Tabla Usuarios creada.<br>";
 
         // 2. TABLA PRODUCTOS
         $pdo->exec("CREATE TABLE IF NOT EXISTS productos (
@@ -34,29 +45,10 @@ try {
             foto_url TEXT,
             activo INTEGER DEFAULT 1
         )");
-        
-        // --- AGREGANDO TUS EJEMPLOS ---
-        $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, foto_url) VALUES (?, ?, ?, ?, ?)");
-        
-        // Ejemplo 1: Coca-Cola
-        $stmtProd->execute([
-            'Coca-Cola Vidrio 355ml', 
-            '7501055300075', 
-            18.00, 
-            48, 
-            'https://cdn-icons-png.flaticon.com/512/2405/2405597.png' // Icono generico si hay internet
-        ]);
 
-        // Ejemplo 2: Marlboro
-        $stmtProd->execute([
-            'Marlboro Rojo (Cajetilla 20)', 
-            '7501000000000', 
-            85.00, 
-            20, 
-            'https://cdn-icons-png.flaticon.com/512/9557/9557864.png' // Icono generico
-        ]);
-        
-        echo "✅ Productos de Ejemplo Agregados (Coca y Marlboro).<br>";
+        // Agregar ejemplos mínimos sin depender de recursos externos
+        $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, foto_url) VALUES (?, ?, ?, ?, ?)");
+        $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50, '']);
 
         // 3. TABLA VENTAS
         $pdo->exec("CREATE TABLE IF NOT EXISTS ventas (
@@ -99,25 +91,47 @@ try {
             error TEXT
         )");
 
-        // 7. NUEVA TABLA: CONFIGURACIÓN (Para guardar el color)
+        // 7. TABLA CONFIGURACIÓN
         $pdo->exec("CREATE TABLE IF NOT EXISTS configuracion (
             clave TEXT PRIMARY KEY,
             valor TEXT
         )");
-        // Color por defecto (Azul Agua Viva)
         $pdo->exec("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('color_tema', '#0d47a1')");
-        
-        echo "✅ Tabla Configuración creada.<br>";
 
-        echo "<br><h2 style='color:green'>¡SISTEMA LISTO! Cierra esta ventana.</h2>";
-        echo "<button onclick='window.close()'>Cerrar</button>";
+        // Crear respaldo inicial (silencioso)
+        try {
+            $backupDir = $db_dir . DIRECTORY_SEPARATOR . 'backups';
+            if (!is_dir($backupDir)) @mkdir($backupDir, 0777, true);
+            $backupFile = $backupDir . DIRECTORY_SEPARATOR . 'database_init_' . date('Ymd_His') . '.sqlite';
+            copy($db_file, $backupFile);
+        } catch (Exception $e) {
+            @file_put_contents($db_dir . DIRECTORY_SEPARATOR . 'db_errors.log', date('c') . " - backup error: " . $e->getMessage() . "\n", FILE_APPEND);
+        }
+
+        if (php_sapi_name() !== 'cli') {
+            echo "<br><h2 style='color:green'>¡SISTEMA LISTO! Cierra esta ventana.</h2>";
+            echo "<button onclick='window.close()'>Cerrar</button>";
+        } else {
+            echo "Instalación completada.\n";
+        }
 
     } else {
-        echo "<h2>La base de datos ya existe.</h2>";
-        echo "<p>Para reiniciar y ver los ejemplos, borra el archivo <b>database.sqlite</b> y recarga esta página.</p>";
+        if (php_sapi_name() !== 'cli') {
+            echo "<h2>La base de datos ya existe.</h2>";
+            echo "<p>Para reiniciar y ver los ejemplos, borra el archivo <b>database.sqlite</b> y recarga esta página.</p>";
+        } else {
+            echo "La base de datos ya existe.\n";
+        }
     }
 
 } catch (PDOException $e) {
-    die("Error Fatal: " . $e->getMessage());
+    // Registrar y devolver error
+    @file_put_contents($db_dir . DIRECTORY_SEPARATOR . 'db_errors.log', date('c') . " - PDO Error: " . $e->getMessage() . "\n", FILE_APPEND);
+    if (php_sapi_name() === 'cli') {
+        fwrite(STDERR, "Error Fatal: " . $e->getMessage() . "\n");
+        exit(1);
+    } else {
+        die("Error Fatal: " . $e->getMessage());
+    }
 }
 ?>

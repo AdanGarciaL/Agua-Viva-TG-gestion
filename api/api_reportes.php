@@ -43,6 +43,32 @@ try {
     $spreadsheet = new Spreadsheet();
     $filename = "Reporte_TG_" . date('Y-m-d_Hi') . ".xlsx";
 
+    // VALIDACIÓN PREVIA: Verificar que hay datos (v5.0)
+    $hayDatos = false;
+    
+    if ($reporte === 'inventario_hoy' || $reporte === 'consolidado') {
+        $countProductos = $conexion->query("SELECT COUNT(*) as c FROM productos WHERE activo = 1")->fetch()['c'];
+        if ($countProductos == 0) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'No hay productos en el inventario para exportar']);
+            exit;
+        }
+        $hayDatos = true;
+    }
+    
+    if ($reporte === 'ventas_periodo') {
+        $desde = $_GET['desde'] ?? date('Y-m-d');
+        $hasta = $_GET['hasta'] ?? date('Y-m-d');
+        $countVentas = $conexion->prepare("SELECT COUNT(*) as c FROM ventas WHERE date(fecha) BETWEEN ? AND ?");
+        $countVentas->execute([$desde, $hasta]);
+        if ($countVentas->fetch()['c'] == 0) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'No hay ventas en el período seleccionado']);
+            exit;
+        }
+        $hayDatos = true;
+    }
+
     // --- GENERACIÓN DE DATOS ---
     if ($reporte === 'inventario_hoy' || $reporte === 'consolidado') {
         
@@ -98,22 +124,8 @@ try {
             }
             autoSizeColumns($sheet3);
             
-            // 4. SÉPTIMAS
-            $sheet4 = $spreadsheet->createSheet();
-            $sheet4->setTitle('Septimas');
-            $sheet4->setCellValue('A1', 'Fecha')->setCellValue('B1', 'Padrino')->setCellValue('C1', 'Monto')->setCellValue('D1', 'Estado');
-            $sheet4->getStyle('A1:D1')->applyFromArray($headerStyle);
-            
-            $stmtS = $conexion->query("SELECT * FROM septimas ORDER BY fecha DESC");
-            $i=2;
-            while($r=$stmtS->fetch(PDO::FETCH_ASSOC)){
-                $sheet4->setCellValue('A'.$i, $r['fecha']);
-                $sheet4->setCellValue('B'.$i, $r['nombre_padrino']);
-                $sheet4->setCellValue('C'.$i, $r['monto']);
-                $sheet4->setCellValue('D'.$i, $r['pagado'] ? 'Pagado' : 'Pendiente');
-                $i++;
-            }
-            autoSizeColumns($sheet4);
+            // 4. SÉPTIMAS (omitido en edición regional)
+            // El módulo de Séptimas está deshabilitado en la edición 'Tienda Regional'.
         }
     }
 

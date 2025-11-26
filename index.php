@@ -1,16 +1,27 @@
 <?php
-// index.php - v4.0
+// index.php - v4.0 - Tienda Regional
+// Cargar configuración centralizada
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'config.php';
+
+// Configurar cookies de sesión seguras cuando sea posible
+if (PHP_VERSION_ID >= 70300) {
+    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => false, 'httponly' => true, 'samesite' => 'Lax']);
+} else {
+    session_set_cookie_params(0, '/','', false, true);
+}
 session_start();
-if (isset($_SESSION["usuario"])) { header("Location: dashboard.php"); exit(); }
+if (isset($_SESSION["usuario"])) { session_regenerate_id(true); header("Location: dashboard.php"); exit(); }
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso - TG Gestión v4.0</title>
+    <title>Login - Tienda Regional (TG Gestión v5.0)</title>
     <link href="assets/css/style.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- SweetAlert2: Local + CDN fallback -->
+    <link href="assets/vendor/sweetalert2/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css" rel="stylesheet" onerror="console.warn('CDN fallback for SweetAlert2 CSS')"
 </head>
 <body class="login-body">
     <div class="login-container">
@@ -77,7 +88,26 @@ if (isset($_SESSION["usuario"])) { header("Location: dashboard.php"); exit(); }
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"></script>
+    <!-- SweetAlert2: Local + CDN fallback -->
+    <script src="assets/vendor/sweetalert2/sweetalert2.min.js"></script>
+    <script>
+    // Cargar desde CDN si no está disponible localmente
+    if (typeof Swal === 'undefined') {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js';
+        script.onload = function() { console.log('SweetAlert2 cargado desde CDN'); };
+        script.onerror = function() {
+            console.warn('SweetAlert2 CDN falló, usando fallback');
+            window.Swal = {
+                fire: function(opts) {
+                    if (opts && opts.title) alert((opts.title || '') + "\n" + (opts.text || ''));
+                    return Promise.resolve({ isConfirmed: true, value: true });
+                }
+            };
+        };
+        document.head.appendChild(script);
+    }
+    </script>
     <script src="assets/js/login.js"></script>
 </body>
 </html>

@@ -11,8 +11,7 @@ if (!isset($_SESSION['usuario']) || $_SESSION['role'] !== 'superadmin') {
     die("⛔ Acceso Denegado: Solo el Superadmin puede descargar la base de datos.");
 }
 
-// 2. Definir archivo
-$db_file = __DIR__ . '/database.sqlite';
+$db_file = defined('DB_FILE') ? DB_FILE : (__DIR__ . '/database.sqlite');
 $fecha = date('Y-m-d_H-i');
 $nombre_descarga = "Respaldo_TG_Gestion_$fecha.sqlite";
 

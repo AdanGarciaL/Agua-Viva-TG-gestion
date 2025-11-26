@@ -86,6 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             if (data.success) {
+                // Guardar token CSRF en sessionStorage si viene
+                if (data.csrf_token) sessionStorage.setItem('csrf_token', data.csrf_token);
                 window.location.href = 'dashboard.php';
             } else {
                 mostrarError(errorAdmin, data.message || 'Datos incorrectos.');
@@ -132,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                if (data.csrf_token) sessionStorage.setItem('csrf_token', data.csrf_token);
                 window.location.href = 'dashboard.php';
             } else {
                 mostrarError(errorVendedor, data.message);

@@ -3,9 +3,10 @@
 // VERSIÓN v4.0
 
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);  // NO mostrar errores HTML
 include 'db.php';
 header('Content-Type: application/json');
-error_reporting(0);
 
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(['success' => false, 'message' => 'Sesión expirada.']);
@@ -27,6 +28,8 @@ try {
 
     // --- 2. CREAR REGISTRO ---
     if ($accion === 'crear' && $esAdmin) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $tipo = $_POST['tipo'];
         $concepto = $_POST['concepto'];
         $monto = $_POST['monto'];
@@ -40,6 +43,8 @@ try {
 
     // --- 3. ELIMINAR REGISTRO ---
     if ($accion === 'eliminar' && $esAdmin) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $id = $_POST['id'];
         $stmt = $conexion->prepare("DELETE FROM registros WHERE id = ?");
         $stmt->execute([$id]);
@@ -50,42 +55,57 @@ try {
 
     // --- 4. CORTE DE CAJA (NUEVO) ---
     if ($accion === 'corte_dia') {
-        // Fecha de hoy en servidor
-        $hoy = date('Y-m-d');
-
-        // A. Sumar Ventas en Efectivo de HOY
+        // A. Sumar Ventas en Efectivo de HOY desde tabla ventas
         $sqlVentas = "SELECT SUM(total) as total FROM ventas 
-                      WHERE tipo_pago = 'pagado' 
+                      WHERE tipo_pago IN ('efectivo', 'pagado') 
                       AND date(fecha) = date('now', 'localtime')";
-        $ventas = $conexion->query($sqlVentas)->fetch()['total'] ?? 0;
+        $ventasDirectas = $conexion->query($sqlVentas)->fetch()['total'] ?? 0;
 
-        // B. Sumar Movimientos Manuales de HOY (Ingresos, Gastos, Retiros)
+        // B. Sumar Movimientos de registros de HOY
         $sqlMovs = "SELECT tipo, SUM(monto) as total FROM registros 
                     WHERE date(fecha) = date('now', 'localtime') 
                     GROUP BY tipo";
         $stmtMovs = $conexion->query($sqlMovs);
         
+        $ventasEfectivo = 0;
         $ingresos = 0;
         $gastos = 0;
         $retiros = 0;
+        $fiados = 0;
 
         while ($row = $stmtMovs->fetch()) {
-            if ($row['tipo'] === 'ingreso') $ingresos = $row['total'];
-            if ($row['tipo'] === 'gasto') $gastos = $row['total'];
-            if ($row['tipo'] === 'egreso') $retiros = $row['total'];
+            switch($row['tipo']) {
+                case 'efectivo':
+                    $ventasEfectivo = floatval($row['total']);
+                    break;
+                case 'ingreso':
+                    $ingresos = floatval($row['total']);
+                    break;
+                case 'gasto':
+                    $gastos = floatval($row['total']);
+                    break;
+                case 'egreso':
+                    $retiros = floatval($row['total']);
+                    break;
+                case 'fiado':
+                    $fiados = floatval($row['total']);
+                    break;
+            }
         }
 
         // Cálculo Final: Dinero que debe haber en el cajón
-        // Nota: Los pagos de fiados entran como 'ingreso' en la tabla registros, así que ya se suman ahí.
-        $enCaja = ($ventas + $ingresos) - ($gastos + $retiros);
+        // Ventas Efectivo + Ingresos - Gastos - Retiros
+        // (Los fiados NO entran en caja hasta que se paguen)
+        $enCaja = ($ventasEfectivo + $ingresos) - ($gastos + $retiros);
 
         echo json_encode([
             'success' => true,
             'corte' => [
-                'ventas_efectivo' => $ventas,
+                'ventas_efectivo' => $ventasEfectivo,
                 'ingresos_extra' => $ingresos,
                 'gastos' => $gastos,
                 'retiros' => $retiros,
+                'fiados_pendientes' => $fiados,
                 'total_caja' => $enCaja
             ]
         ]);

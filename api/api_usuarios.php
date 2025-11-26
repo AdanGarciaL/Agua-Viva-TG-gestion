@@ -3,9 +3,10 @@
 // VERSIÓN FINAL: Producción
 
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 include 'db.php';
 header('Content-Type: application/json');
-error_reporting(0);
 
 // SEGURIDAD TOTAL: Solo Superadmin entra aquí
 if (!isset($_SESSION['usuario']) || $_SESSION['role'] !== 'superadmin') {
@@ -25,6 +26,8 @@ try {
     
     // --- 2. CREAR USUARIO (Solo Admins) ---
     if ($accion === 'crear') {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
         
@@ -56,6 +59,8 @@ try {
     
     // --- 3. ELIMINAR USUARIO ---
     if ($accion === 'eliminar') {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $id = $_POST['id'];
         
         // Evitar auto-suicidio (No puedes borrarte a ti mismo)

@@ -1,7 +1,26 @@
-/* style.css - v4.0 */
+/**
+ * ========================================
+ * TG Gestión - Estilos Globales
+ * Versión 5.0 Offline Edition
+ * ========================================
+ * 
+ * Características CSS v5.0:
+ * - ✅ Variables CSS dinámicas para personalización
+ * - ✅ Gradientes adaptativos (mantienen identidad + tema)
+ * - ✅ Modo claro/oscuro con transiciones suaves
+ * - ✅ Sistema de color primario/secundario/acento
+ * - ✅ Animaciones CSS3 modernas
+ * - ✅ Responsive design para tablets
+ * - ✅ Efectos hover y ripple en botones
+ * 
+ * Los colores primario, secundario y acento se generan
+ * dinámicamente mediante JavaScript según la elección del usuario
+ * 
+ * Fecha: Noviembre 2025
+ */
 
 :root {
-    /* Paleta */
+    /* Paleta de colores base (sobrescritos dinámicamente por JS) */
     --color-primario: #0d47a1; 
     --color-secundario: #1976d2; 
     --color-acento: #42a5f5; 
@@ -11,18 +30,19 @@
     --color-input-bg: #fcfcfc;
     --color-borde: #e0e0e0;
     
-    /* Estados */
+    /* Estados y alertas (fijos) */
     --color-success: #2e7d32;
     --color-danger: #c62828;
     --color-warning: #f57c00;
     --color-admin: #4a148c;
     --color-septima: #6a1b9a;
     
-    /* Efectos */
+    /* Efectos y transiciones */
     --sombra: 0 4px 12px rgba(0, 0, 0, 0.08);
     --transicion: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* Tema Oscuro - Variables sobrescritas */
 [data-theme="dark"] {
     /* En modo oscuro, el primario se mantiene para identidad, pero el fondo cambia */
     --color-fondo: #121212;
@@ -135,10 +155,11 @@ body {
     z-index: 1000; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.1);
     color: white; /* Texto blanco siempre para contrastar con el color primario */
 }
-/* Ajustes para modo oscuro en navbar */
+/* Ajustes para modo oscuro en navbar - Mantiene color primario dinámico */
 [data-theme="dark"] .top-navbar { 
-    background-color: #1e1e1e; /* Opcional: Si prefieres gris en dark, descomenta. Si no, usa var(--color-primario) */
-    border-bottom: 1px solid #333; 
+    background-color: var(--color-primario); /* Color dinámico también en modo oscuro */
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    filter: brightness(0.85); /* Ligeramente más oscuro para dark mode */
 }
 
 .nav-brand { display: flex; align-items: center; gap: 10px; }
@@ -161,6 +182,17 @@ body {
     background: rgba(255,255,255,0.2); color: white; transition: var(--transicion);
 }
 .btn-circle:hover { background: rgba(255,255,255,0.4); transform: rotate(15deg); }
+
+/* v5.0: Input de Color personalizado - ocultar el input nativo */
+#color-picker-input {
+    opacity: 0;
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    border: none;
+}
+
 .btn-logout-nav {
     background: #c62828; color: white;
     width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
@@ -224,11 +256,15 @@ tbody tr:hover { background-color: var(--color-input-bg); }
 .btn-icon:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); filter: brightness(1.1); }
 .btn-icon:active { transform: scale(0.95); }
 
-.btn-edit { background: linear-gradient(135deg, #ffca28, #f57f17); color: #3e2723; }
-.btn-delete { background: linear-gradient(135deg, #ef5350, #b71c1c); }
-.btn-undo { background: linear-gradient(135deg, #42a5f5, #1565c0); }
-.btn-pay { background: linear-gradient(135deg, #66bb6a, #2e7d32); }
-.btn-success { background: linear-gradient(135deg, #9ccc65, #33691e); }
+/* Botones con gradientes inteligentes (v5.0)
+ * Cada botón mantiene su color característico pero se mezcla con el tema del usuario
+ * Amarillo → Tema (Editar) | Rojo → Tema (Eliminar) | Azul → Tema (Deshacer)
+ * Verde → Tema (Pagar/Éxito) */
+.btn-edit { background: linear-gradient(135deg, #ffca28, var(--color-primario)); color: #3e2723; }
+.btn-delete { background: linear-gradient(135deg, #ef5350, var(--color-primario)); }
+.btn-undo { background: linear-gradient(135deg, #42a5f5, var(--color-primario)); }
+.btn-pay { background: linear-gradient(135deg, #66bb6a, var(--color-primario)); }
+.btn-success { background: linear-gradient(135deg, #9ccc65, var(--color-primario)); }
 td .btn-icon { margin: 0 3px; }
 
 .btn-accion-tabla { @extend .btn-icon; } /* Compatibilidad */
@@ -256,6 +292,204 @@ body[data-role="superadmin"] .superadmin-only { display: block !important; }
 @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+
 .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+.fade-in { animation: fadeIn 0.5s ease-out; }
+.slide-in-left { animation: slideInLeft 0.5s ease-out; }
+.slide-in-right { animation: slideInRight 0.5s ease-out; }
+
+/* Loading spinner modernizado */
+.loading-spinner {
+    border: 3px solid var(--color-borde);
+    border-top: 3px solid var(--color-primario);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 0.8s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Skeleton loading para tablas */
+.skeleton {
+    background: linear-gradient(90deg, var(--color-input-bg) 25%, var(--color-borde) 50%, var(--color-input-bg) 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 4px;
+    height: 20px;
+    margin: 10px 0;
+}
+
+/* Mejoras en cards y badges */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.badge-success { background: linear-gradient(135deg, #66bb6a, #2e7d32); color: white; }
+.badge-danger { background: linear-gradient(135deg, #ef5350, #b71c1c); color: white; }
+.badge-warning { background: linear-gradient(135deg, #ffca28, #f57f17); color: #3e2723; }
+.badge-info { background: linear-gradient(135deg, #42a5f5, #1565c0); color: white; }
+
+/* Hover effects modernos en cards */
+.card, .stat-card, .registros-box {
+    transition: var(--transicion);
+}
+
+.card:hover, .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Botones con ripple effect visual */
+.btn, .btn-icon, .btn-primario, .btn-secundario {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after, .btn-icon::after, .btn-primario::after, .btn-secundario::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::after, .btn-icon:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Inputs con focus mejorado */
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 3px var(--color-primario-translucido);
+    transform: translateY(-2px);
+}
+
+/* Transiciones suaves en navegación */
+.nav-item {
+    position: relative;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: var(--color-acento);
+    transition: width 0.3s ease, left 0.3s ease;
+}
+
+.nav-item:hover::before,
+.nav-item.active::before {
+    width: 100%;
+    left: 0;
+}
+
+/* Tooltips mejorados */
+[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 1000;
+    animation: fadeInDown 0.2s ease-out;
+    pointer-events: none;
+}
+
+/* v5.0: Tarjetas de Estadísticas - Responsive al Tema */
+.stat-card {
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: var(--sombra);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* ==========================================
+ * TARJETAS DE ESTADÍSTICAS - GRADIENTES DINÁMICOS (v5.0)
+ * ==========================================
+ * Cada stat-card mantiene su color inicial característico
+ * pero se gradúa hacia el color primario elegido por el usuario.
+ * En modo oscuro, se gradúa hacia el color secundario (más oscuro)
+ * 
+ * Ejemplos:
+ * - Purple: Púrpura → Tu color elegido
+ * - Pink: Rosa → Tu color elegido
+ * - Blue: Azul cielo → Tu color elegido
+ * - Green: Verde → Tu color elegido
+ * - Orange: Naranja/Rosa → Tu color elegido
+ * - Teal: Turquesa → Tu color elegido
+ */
+
+/* Gradientes para tema claro */
+.stat-card-purple { background: linear-gradient(135deg, #667eea 0%, var(--color-primario) 100%); }
+.stat-card-pink { background: linear-gradient(135deg, #f093fb 0%, var(--color-primario) 100%); }
+.stat-card-blue { background: linear-gradient(135deg, #4facfe 0%, var(--color-primario) 100%); }
+.stat-card-green { background: linear-gradient(135deg, #43e97b 0%, var(--color-primario) 100%); }
+.stat-card-orange { background: linear-gradient(135deg, #fa709a 0%, var(--color-primario) 100%); }
+.stat-card-teal { background: linear-gradient(135deg, #30cfd0 0%, var(--color-primario) 100%); }
+
+/* Gradientes para tema oscuro (más oscuros) */
+[data-theme="dark"] .stat-card-purple { background: linear-gradient(135deg, #4a5dc9 0%, var(--color-secundario) 100%); }
+[data-theme="dark"] .stat-card-pink { background: linear-gradient(135deg, #c873db 0%, var(--color-secundario) 100%); }
+[data-theme="dark"] .stat-card-blue { background: linear-gradient(135deg, #2f8cce 0%, var(--color-secundario) 100%); }
+[data-theme="dark"] .stat-card-green { background: linear-gradient(135deg, #33c75b 0%, var(--color-secundario) 100%); }
+[data-theme="dark"] .stat-card-orange { background: linear-gradient(135deg, #da507a 0%, var(--color-secundario) 100%); }
+[data-theme="dark"] .stat-card-teal { background: linear-gradient(135deg, #20afd0 0%, var(--color-secundario) 100%); }
+
+.stat-card small {
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+}
+
+.stat-card h3 {
+    margin: 5px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stat-card i {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
 
 @media (max-width: 900px) { .venta-container { grid-template-columns: 1fr; } .nav-item span { display: none; } .top-navbar { padding: 0 10px; } }

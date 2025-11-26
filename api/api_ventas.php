@@ -6,8 +6,15 @@ session_start();
 include 'db.php';
 header('Content-Type: application/json');
 
-// Evitar warnings en JSON
-error_reporting(0);
+// Logging pero sin mostrar errores
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
+// DEBUG: Log de operaciones de ventas
+@file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_ventas.log',
+    date('Y-m-d H:i:s') . " [VENTAS] Accion: " . ($_REQUEST['accion'] ?? 'unknown') . " | Data: " . json_encode($_REQUEST) . "\n",
+    FILE_APPEND
+);
 
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(['success' => false, 'message' => 'Sesión expirada.']);
@@ -50,6 +57,8 @@ try {
 
     // --- 3. PAGAR DEUDA ---
     if ($accion === 'pagar_fiado' && !empty($_POST['nombre_fiado'])) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $nombre = $_POST['nombre_fiado'];
         $monto = $_POST['monto_pagado'] ?? 0;
 
@@ -70,6 +79,8 @@ try {
 
     // --- 4. ELIMINAR VENTA (Solo Admins - Devuelve Stock) ---
     if ($accion === 'eliminar_venta' && $esAdmin) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
         $id = $_POST['id'];
         
         $conexion->beginTransaction();
@@ -95,16 +106,23 @@ try {
     }
 
     // --- 5. NUEVA VENTA (Procesar Carrito - BLINDADO) ---
-    $input = json_decode(file_get_contents('php://input'), true);
+    include_once 'csrf.php';
+    // Leer una sola vez el raw input (cached en csrf)
+    $raw_input = get_cached_raw_input();
+    $input = $raw_input ? json_decode($raw_input, true) : null;
     if ($input) {
+        require_csrf_or_die();
         $carrito = $input['carrito'] ?? [];
         if (empty($carrito)) {
             echo json_encode(['success' => false, 'message' => 'Carrito vacío']);
             exit();
         }
 
-        $tipo = $input['tipo_pago'];
-        $fiadoA = ($tipo === 'fiado') ? $input['nombre_fiado'] : null;
+        $tipo = $input['tipo_pago'] ?? 'pagado';
+        // Normalizar: "pagado" → "efectivo", "fiado" → "fiado"
+        if ($tipo === 'pagado') $tipo = 'efectivo';
+        
+        $fiadoA = ($tipo === 'fiado') ? ($input['nombre_fiado'] ?? null) : null;
 
         $conexion->beginTransaction();
 
@@ -127,13 +145,42 @@ try {
             }
 
             // 2. Si hay stock, procedemos
-            $total = $item['precio'] * $item['cantidad'];
-            $stmtVenta->execute([$item['id'], $item['cantidad'], $total, $vendedor_nombre, $item['foto'], $tipo, $fiadoA]);
+            // Soportar tanto 'precio' como 'precio_venta' del JS
+            $precio = $item['precio'] ?? $item['precio_venta'] ?? 0;
+            $total = floatval($precio) * intval($item['cantidad']);
+            $stmtVenta->execute([$item['id'], $item['cantidad'], $total, $vendedor_nombre, $item['foto'] ?? null, $tipo, $fiadoA]);
             $stmtStock->execute([$item['cantidad'], $item['id']]);
+        }
+
+        // 3. REGISTRAR MOVIMIENTO EN CAJA (automático después de venta exitosa)
+        $totalCarrito = array_reduce($carrito, function($sum, $item) {
+            $precio = $item['precio'] ?? $item['precio_venta'] ?? 0;
+            return $sum + (floatval($precio) * intval($item['cantidad']));
+        }, 0);
+        
+        $stmtReg = $conexion->prepare("INSERT INTO registros (tipo, concepto, monto, usuario, fecha) VALUES (?, ?, ?, ?, datetime('now', 'localtime'))");
+        if ($tipo === 'fiado') {
+            $stmtReg->execute(['fiado', 'Fiado a: ' . ($fiadoA ?? 'Sin nombre'), $totalCarrito, $vendedor_nombre]);
+        } else {
+            $stmtReg->execute(['efectivo', 'Venta Efectivo', $totalCarrito, $vendedor_nombre]);
         }
 
         $conexion->commit();
         echo json_encode(['success' => true]);
+        exit();
+    }
+
+    // v5.0: ÚLTIMAS VENTAS (para historial)
+    if ($accion === 'ultimas_ventas') {
+        $limit = min(20, max(1, intval($_GET['limit'] ?? 5)));
+        $stmt = $conexion->prepare("
+            SELECT id, total, tipo_pago, fecha
+            FROM ventas
+            ORDER BY fecha DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        echo json_encode(['success' => true, 'ventas' => $stmt->fetchAll()]);
         exit();
     }
 

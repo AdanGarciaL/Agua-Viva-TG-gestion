@@ -1,8 +1,15 @@
 <?php
 session_start();
 include 'db.php';
-error_reporting(0);
+error_reporting(E_ALL);
+ini_set('display_errors', '0'); // Log pero no mostrar
 header('Content-Type: application/json');
+
+// DEBUG: Log de intentos de login
+@file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_login.log',
+    date('Y-m-d H:i:s') . " [LOGIN] Intento. POST data: " . json_encode($_POST) . "\n",
+    FILE_APPEND
+);
 
 $modo = $_POST['modo'] ?? 'admin';
 
@@ -21,8 +28,10 @@ try {
         $_SESSION['usuario'] = $nombre;
         $_SESSION['role'] = 'vendedor';
         $_SESSION['vendedor_nombre'] = $nombre;
-        
-        echo json_encode(['success' => true]);
+        // Generar CSRF token y devolverlo al cliente para futuras peticiones
+        include_once 'csrf.php';
+        $token = get_csrf_token();
+        echo json_encode(['success' => true, 'csrf_token' => $token]);
 
     } else {
         $user = trim($_POST['username'] ?? '');
@@ -36,7 +45,9 @@ try {
             session_regenerate_id(true);
             $_SESSION['usuario'] = $u['username'];
             $_SESSION['role'] = $u['role'];
-            echo json_encode(['success' => true]);
+            include_once 'csrf.php';
+            $token = get_csrf_token();
+            echo json_encode(['success' => true, 'csrf_token' => $token]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Datos incorrectos']);
         }
