@@ -217,7 +217,7 @@ Privada - Solo para uso autorizado
 
 ## 👨‍💼 Desarrollador
 
-**Adán García López**  
+**Adán García Lima**  
 📧 [Contacto](https://github.com/AdanGarciaL)
 
 ---
