@@ -45,6 +45,22 @@ Incluye:
 
 ---
 
+## 🔁 Diferencias entre v5 y v10 Beta (explicado simple)
+
+Lo nuevo en v10 Beta comparado con v5:
+
+- **Modo oscuro corregido:** ya no hay textos que se pierden en blanco/negro.
+- **Caja e inventario más legibles:** colores y contrastes mejorados.
+- **Registro de errores mejorado:** la app guarda errores automáticamente.
+- **Botón para limpiar el log:** evita que el sistema se vuelva lento.
+- **Pantallas más estables:** menos errores de conexión y reintentos automáticos.
+- **Correcciones visuales generales:** sin espacios raros ni scroll horizontal.
+- **Versión unificada:** todo muestra “v10 Beta” en pantallas y configuración.
+
+> En resumen: **v10 Beta es más estable, más clara y con mejor control de errores**.
+
+---
+
 ## 🚀 Instalación Rápida (Usuarios Finales)
 
 1. **Descarga** el instalador.
