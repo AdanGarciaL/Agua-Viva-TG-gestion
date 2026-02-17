@@ -103,14 +103,14 @@ cd Agua-Viva-TG-gestion/www
    - Abrir en navegador: `http://localhost:8080/launcher.php`
    - El sistema se inicializará automáticamente
 
-### 🔐 Credenciales Iniciales
+### 🔐 Primera Configuración
 
-| Campo | Valor |
-|-------|-------|
-| **Usuario** | `AdanGL` |
-| **Contraseña** | `Agl252002` |
+Al instalar, el sistema solicitará crear una cuenta de administrador.
 
-⚠️ **Importante**: Cambiar contraseña después del primer acceso
+⚠️ **Importante**: 
+- Contacta con el desarrollador para configurar el administrador
+- Define un nombre de usuario y contraseña segura
+- Guarda tus credenciales en un lugar seguro
 
 ---
 
