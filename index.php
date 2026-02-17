@@ -1,6 +1,5 @@
 <?php
-// index.php - v4.0 - Tienda Regional
-// Cargar configuración centralizada
+// index.php - v10 Beta - Tienda Regional
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'config.php';
 
 // Configurar cookies de sesión seguras cuando sea posible
@@ -17,11 +16,9 @@ if (isset($_SESSION["usuario"])) { session_regenerate_id(true); header("Location
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Tienda Regional (TG Gestión v5.0)</title>
+    <title>Login - Tienda Regional (TG Gestión v10 Beta)</title>
     <link href="assets/css/style.css" rel="stylesheet">
-    <!-- SweetAlert2: Local + CDN fallback -->
     <link href="assets/vendor/sweetalert2/sweetalert2.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css" rel="stylesheet" onerror="console.warn('CDN fallback for SweetAlert2 CSS')"
 </head>
 <body class="login-body">
     <div class="login-container">
@@ -51,6 +48,13 @@ if (isset($_SESSION["usuario"])) { session_regenerate_id(true); header("Location
                     Entrar al Sistema
                 </button>
                 <p id="login-error-admin" class="error-msg" style="color:var(--color-danger); margin-top:10px;"></p>
+                
+                <!-- Botón de restauración -->
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="restore-system.php" style="color: #667eea; text-decoration: none; font-size: 0.9em; display: inline-flex; align-items: center; gap: 5px;">
+                        <span>🔧</span> ¿Problemas para entrar? Restaurar sistema
+                    </a>
+                </div>
             </form>
 
             <form id="loginFormVendedor" class="login-form" novalidate>
@@ -86,28 +90,21 @@ if (isset($_SESSION["usuario"])) { session_regenerate_id(true); header("Location
                 <p id="login-error-vendedor" class="error-msg" style="color:var(--color-danger); margin-top:10px;"></p>
             </form>
         </div>
+        
+        <!-- Panel de herramientas -->
+        <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 12px; text-align: center;">
+            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <a href="restore-system.php" style="color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9em; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                    🔧 Restaurar Sistema
+                </a>
+                <a href="test-login-direct.php" style="color: white; text-decoration: none; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 8px; font-size: 0.9em; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                    🔑 Login Directo
+                </a>
+            </div>
+        </div>
     </div>
     
-    <!-- SweetAlert2: Local + CDN fallback -->
     <script src="assets/vendor/sweetalert2/sweetalert2.min.js"></script>
-    <script>
-    // Cargar desde CDN si no está disponible localmente
-    if (typeof Swal === 'undefined') {
-        var script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js';
-        script.onload = function() { console.log('SweetAlert2 cargado desde CDN'); };
-        script.onerror = function() {
-            console.warn('SweetAlert2 CDN falló, usando fallback');
-            window.Swal = {
-                fire: function(opts) {
-                    if (opts && opts.title) alert((opts.title || '') + "\n" + (opts.text || ''));
-                    return Promise.resolve({ isConfirmed: true, value: true });
-                }
-            };
-        };
-        document.head.appendChild(script);
-    }
-    </script>
     <script src="assets/js/login.js"></script>
 </body>
 </html>

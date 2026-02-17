@@ -13,11 +13,35 @@ header('Content-Type: application/json');
 
 $modo = $_POST['modo'] ?? 'admin';
 
+// Verificar que la conexión a BD existe
+if (!isset($conexion) || !$conexion) {
+    @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_login.log',
+        date('Y-m-d H:i:s') . " [LOGIN] ERROR: No hay conexión a BD\n",
+        FILE_APPEND
+    );
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Error de conexión a base de datos. Por favor ejecuta: force-init-db.php',
+        'error_code' => 'NO_DB_CONNECTION'
+    ]);
+    exit;
+}
+
 try {
     if ($modo === 'vendedor') {
-        $nombre = trim($_POST['vendedor_nombre'] ?? '');
-        $estigma = $_POST['vendedor_estigma'] ?? '';
-        $padrino = $_POST['vendedor_padrino'] ?? '';
+        $nombre = htmlspecialchars(trim($_POST['vendedor_nombre'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $estigma = htmlspecialchars($_POST['vendedor_estigma'] ?? '', ENT_QUOTES, 'UTF-8');
+        $padrino = htmlspecialchars(trim($_POST['vendedor_padrino'] ?? ''), ENT_QUOTES, 'UTF-8');
+
+        // Validación de longitud para prevenir inyecciones
+        if (strlen($nombre) < 2 || strlen($nombre) > 100) {
+            echo json_encode(['success' => false, 'message' => 'Nombre debe tener entre 2 y 100 caracteres.']);
+            exit;
+        }
+        if (strlen($padrino) < 2 || strlen($padrino) > 100) {
+            echo json_encode(['success' => false, 'message' => 'Nombre de padrino debe tener entre 2 y 100 caracteres.']);
+            exit;
+        }
 
         if (empty($nombre) || empty($estigma)) {
             echo json_encode(['success' => false, 'message' => 'Faltan datos.']);
@@ -37,22 +61,60 @@ try {
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
 
+        // Debug: Log intento de login
+        @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'login_attempts.log',
+            date('Y-m-d H:i:s') . " [ADMIN] Usuario: '$user' | Pass length: " . strlen($pass) . "\n",
+            FILE_APPEND
+        );
+
         $stmt = $conexion->prepare("SELECT * FROM usuarios WHERE username = ? LIMIT 1");
         $stmt->execute([$user]);
         $u = $stmt->fetch();
 
+        if ($u) {
+            @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'login_attempts.log',
+                date('Y-m-d H:i:s') . " [ADMIN] Usuario encontrado en BD | Role: " . $u['role'] . " | Password verify: " . (password_verify($pass, $u['password']) ? 'SI' : 'NO') . "\n",
+                FILE_APPEND
+            );
+        } else {
+            @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'login_attempts.log',
+                date('Y-m-d H:i:s') . " [ADMIN] Usuario NO encontrado en BD\n",
+                FILE_APPEND
+            );
+        }
+
         if ($u && password_verify($pass, $u['password'])) {
             session_regenerate_id(true);
             $_SESSION['usuario'] = $u['username'];
+            $_SESSION['user_id'] = $u['id'];
             $_SESSION['role'] = $u['role'];
             include_once 'csrf.php';
             $token = get_csrf_token();
+            
+            @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'login_attempts.log',
+                date('Y-m-d H:i:s') . " [ADMIN] ✓ LOGIN EXITOSO | Usuario: " . $u['username'] . "\n",
+                FILE_APPEND
+            );
+            
             echo json_encode(['success' => true, 'csrf_token' => $token]);
         } else {
+            @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'login_attempts.log',
+                date('Y-m-d H:i:s') . " [ADMIN] ✗ LOGIN FALLIDO | Datos incorrectos\n",
+                FILE_APPEND
+            );
+            
             echo json_encode(['success' => false, 'message' => 'Datos incorrectos']);
         }
     }
+} catch (PDOException $e) {
+    error_log("[LOGIN] PDO Error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Error en base de datos. Intente nuevamente.']);
+    exit;
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error login: ' . $e->getMessage()]);
+    error_log("[LOGIN] Exception: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Error interno. Intente nuevamente.']);
+    exit;
 }
 ?>

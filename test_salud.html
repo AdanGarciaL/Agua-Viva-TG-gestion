@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Salud del Sistema</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            background: linear-gradient(135deg, #0d47a1, #1976d2);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .header h1 { font-size: 26px; margin-bottom: 5px; }
+        .content { padding: 25px; }
+        .buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-test { background: #1976d2; color: white; flex: 1; min-width: 180px; }
+        .btn-test:hover { background: #1565c0; transform: translateY(-2px); }
+        .btn-clear { background: #f44336; color: white; }
+        .btn-clear:hover { background: #d32f2f; }
+        .result { 
+            background: #f5f5f5; 
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #0d47a1;
+        }
+        .result.success { background: #f1f8e9; border-color: #4caf50; }
+        .result.error { background: #ffebee; border-color: #f44336; }
+        pre { 
+            background: white;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔍 Test de Salud del Sistema</h1>
+        <p>Prueba el API de salud_sistema</p>
+    </div>
+    
+    <div class="content">
+        <div class="buttons">
+            <button class="btn-test" onclick="runTest()">Ejecutar Test</button>
+            <button class="btn-clear" onclick="clearResults()">Limpiar</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+</div>
+
+<script>
+async function runTest() {
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '<div class="result"><strong>Ejecutando prueba...</strong></div>';
+    
+    try {
+        const resp = await fetch('api/api_admin.php?accion=salud_sistema&t=' + Date.now(), {
+            method: 'GET',
+            credentials: 'include'
+        });
+        
+        console.log('Status:', resp.status);
+        console.log('Content-Type:', resp.headers.get('content-type'));
+        
+        const text = await resp.text();
+        console.log('Response:', text.substring(0, 500));
+        
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                resultsDiv.innerHTML = `<div class="result success">
+                    <strong>✓ API respondió correctamente</strong>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>`;
+            } else {
+                resultsDiv.innerHTML = `<div class="result error">
+                    <strong>✗ Error en respuesta</strong>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>`;
+            }
+        } catch (jsonErr) {
+            resultsDiv.innerHTML = `<div class="result error">
+                <strong>✗ JSON inválido</strong>
+                <p>Error: ${jsonErr.message}</p>
+                <p>Respuesta (primeros 1000 caracteres):</p>
+                <pre>${text.substring(0, 1000)}</pre>
+            </div>`;
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<div class="result error">
+            <strong>✗ Error de conexión</strong>
+            <pre>${err.message}</pre>
+        </div>`;
+    }
+}
+
+function clearResults() {
+    document.getElementById('results').innerHTML = '';
+}
+
+window.addEventListener('load', () => {
+    document.getElementById('results').innerHTML = '<div class="result"><p>Haz clic en "Ejecutar Test" para probar la API</p></div>';
+});
+</script>
+</body>
+</html>

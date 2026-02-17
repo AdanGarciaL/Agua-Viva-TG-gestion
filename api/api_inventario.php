@@ -1,15 +1,19 @@
 <?php
-// api/api_inventario.php - VERSIÓN COMPLETADA CON LOGGING
+// api/api_inventario.php - v4.1 Reconexión automática
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);  // NO mostrar errores HTML (solo loguear)
 include 'db.php';
+include 'error_handler.php';
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['usuario'])) {
-    echo json_encode(['success' => false, 'message' => 'No autorizado']);
-    exit;
+// Asegurar conexión de BD
+if (!asegurar_conexion_db()) {
+    echo json_encode(['success' => false, 'message' => 'Error de conexión a base de datos']);
+    exit();
 }
+
+validar_sesion();
 
 $accion = $_REQUEST['accion'] ?? '';
 $esAdmin = ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'superadmin');
@@ -44,9 +48,43 @@ try {
         if ($q === '') { echo json_encode(['success' => true, 'productos' => []]); exit; }
         $like = "%" . str_replace('%', '\\%', $q) . "%";
         $stmt = $conexion->prepare("SELECT * FROM productos WHERE activo = 1 AND (LOWER(nombre) LIKE LOWER(?) OR codigo_barras LIKE ?) ORDER BY nombre ASC LIMIT ?");
-        $stmt->execute([$like, $q . '%', $limit]);
+        $stmt->bindValue(1, $like, PDO::PARAM_STR);
+        $stmt->bindValue(2, $q . '%', PDO::PARAM_STR);
+        $stmt->bindValue(3, $limit, PDO::PARAM_INT);
+        $stmt->execute();
         $res = $stmt->fetchAll();
         echo json_encode(['success' => true, 'productos' => $res]);
+    }
+    
+    // Stock bajo (productos con stock <= umbral o stock_minimo)
+    else if ($accion === 'stock_bajo') {
+        $umbral = intval($_GET['umbral'] ?? 10);
+        $stmt = $conexion->prepare("SELECT id, nombre, codigo_barras, stock, stock_minimo, precio_venta FROM productos WHERE activo = 1 AND (stock <= ? OR stock <= stock_minimo) ORDER BY stock ASC, nombre ASC");
+        $stmt->execute([$umbral]);
+        $productos = $stmt->fetchAll();
+        echo json_encode(['success' => true, 'productos' => $productos, 'count' => count($productos)]);
+    }
+    
+    // Historial de cambios (audit log) - Solo admins
+    else if ($accion === 'historial' && $esAdmin) {
+        $producto_id = intval($_GET['producto_id'] ?? 0);
+        
+        if ($producto_id === 0) {
+            error_response('datos_incompletos', ['field' => 'producto_id']);
+        }
+        
+        $stmt = $conexion->prepare("
+            SELECT a.*, p.nombre as producto_nombre
+            FROM audit_log a
+            LEFT JOIN productos p ON p.id = a.registro_id
+            WHERE a.tabla = 'productos' AND a.registro_id = ?
+            ORDER BY a.fecha DESC
+            LIMIT 50
+        ");
+        $stmt->execute([$producto_id]);
+        $historial = $stmt->fetchAll();
+        
+        echo json_encode(['success' => true, 'historial' => $historial]);
     }
 
     // Crear Producto
@@ -63,13 +101,7 @@ try {
         
         // Validación básica: nombre es obligatorio, precio y stock deben ser > 0
         if (empty($nombre) || $precio <= 0 || $stock < 0) {
-            $error_msg = "Validación: nombre no vacío, precio > 0, stock >= 0. Recibido: nombre='$nombre', precio=$precio, stock=$stock";
-            @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_debug.log',
-                date('Y-m-d H:i:s') . " [api_inventario CREATE] ERROR VALIDACIÓN: $error_msg\n",
-                FILE_APPEND
-            );
-            echo json_encode(['success' => false, 'message' => $error_msg]);
-            exit;
+            error_response('datos_incompletos', ['field' => 'nombre/precio/stock']);
         }
         
         try {
@@ -117,26 +149,67 @@ try {
             echo json_encode(['success' => false, 'message' => $error, 'trace' => $e->getTraceAsString()]);
         }
 
-    // Editar Producto (REPARADO: Manejo de ID y campos vacíos)
+    // Editar Producto (CON AUDIT LOG v5.0+)
     } else if ($accion === 'editar' && $esAdmin) {
         include_once 'csrf.php';
         require_csrf_or_die();
+        
+        $id = intval($_POST['id']);
+        
+        // Obtener valores anteriores para audit log
+        $stmt_prev = $conexion->prepare("SELECT * FROM productos WHERE id = ?");
+        $stmt_prev->execute([$id]);
+        $anterior = $stmt_prev->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$anterior) {
+            error_response('producto_no_existe');
+        }
+        
+        // Valores nuevos
+        $nuevo_nombre = trim($_POST['nombre']);
+        $nuevo_codigo = trim($_POST['codigo'] ?? '');
+        $nuevo_precio = floatval($_POST['precio']);
+        $nuevo_stock = intval($_POST['stock']);
+        $nueva_foto = trim($_POST['foto'] ?? '');
+        
+        // Actualizar producto
         $stmt = $conexion->prepare("UPDATE productos SET nombre=?, codigo_barras=?, precio_venta=?, stock=?, foto_url=? WHERE id=?");
         $stmt->execute([
-            $_POST['nombre'], 
-            $_POST['codigo'] ?? '', 
-            $_POST['precio'], 
-            $_POST['stock'], 
-            $_POST['foto'] ?? '', 
-            $_POST['id']
+            $nuevo_nombre, 
+            $nuevo_codigo, 
+            $nuevo_precio, 
+            $nuevo_stock, 
+            $nueva_foto, 
+            $id
         ]);
+        
+        // Registrar cambios en audit_log
+        if ($anterior['nombre'] !== $nuevo_nombre) {
+            registrar_auditoria('productos', $id, 'nombre', $anterior['nombre'], $nuevo_nombre);
+        }
+        if ($anterior['codigo_barras'] !== $nuevo_codigo) {
+            registrar_auditoria('productos', $id, 'codigo_barras', $anterior['codigo_barras'], $nuevo_codigo);
+        }
+        if (floatval($anterior['precio_venta']) !== $nuevo_precio) {
+            registrar_auditoria('productos', $id, 'precio_venta', $anterior['precio_venta'], $nuevo_precio);
+        }
+        if (intval($anterior['stock']) !== $nuevo_stock) {
+            registrar_auditoria('productos', $id, 'stock', $anterior['stock'], $nuevo_stock);
+        }
+        if ($anterior['foto_url'] !== $nueva_foto) {
+            registrar_auditoria('productos', $id, 'foto_url', $anterior['foto_url'], $nueva_foto);
+        }
+        
         echo json_encode(['success' => true, 'message' => 'Producto Actualizado']);
 
     // Eliminar (Soft Delete para no romper historial)
     } else if ($accion === 'eliminar' && $esAdmin) {
         include_once 'csrf.php';
         require_csrf_or_die();
-        $id = $_POST['id'];
+        $id = $_POST['id'] ?? null;
+        if (!$id) {
+            error_response('datos_incompletos', ['field' => 'id']);
+        }
         // Intentamos borrar físico primero
         try {
             $stmt = $conexion->prepare("DELETE FROM productos WHERE id = ?");
@@ -204,20 +277,7 @@ try {
         }
     }
 
-    // v5.0: Stock Bajo (productos con stock < 10)
-    else if ($accion === 'stock_bajo') {
-        if (!$esAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
-            exit;
-        }
-        
-        $stmt = $conexion->query("SELECT * FROM productos WHERE activo = 1 AND stock < 10 ORDER BY stock ASC");
-        $productos = $stmt->fetchAll();
-        
-        echo json_encode(['success' => true, 'productos' => $productos]);
-    }
-
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    manejar_excepcion_general($e, 'inventario');
 }
 ?>

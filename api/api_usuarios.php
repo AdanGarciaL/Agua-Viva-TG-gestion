@@ -1,12 +1,20 @@
 <?php
 // api/api_usuarios.php
-// VERSIÓN FINAL: Producción
+// VERSIÓN v4.2 - Reconexión automática + Type hints mejorados
 
 session_start();
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
 include 'db.php';
 header('Content-Type: application/json');
+
+// Asegurar conexión de BD
+if (!asegurar_conexion_db()) {
+    echo json_encode(['success' => false, 'message' => 'Error de conexión a base de datos']);
+    exit();
+}
+
+/** @var \PDO $conexion */
 
 // SEGURIDAD TOTAL: Solo Superadmin entra aquí
 if (!isset($_SESSION['usuario']) || $_SESSION['role'] !== 'superadmin') {

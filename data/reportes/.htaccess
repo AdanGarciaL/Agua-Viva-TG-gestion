@@ -1,0 +1,5 @@
+# Permitir descarga de archivos Excel
+<Files "*.xlsx">
+    Header set Content-Type "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    Header set Content-Disposition "attachment"
+</Files>

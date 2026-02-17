@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Rápido - TG Gestión</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .content { padding: 30px; }
+        .test-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-left: 4px solid #ccc;
+            background: #f9f9f9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .test-item.pending { border-color: #ff9800; }
+        .test-item.success { border-color: #4caf50; background: #e8f5e9; }
+        .test-item.error { border-color: #f44336; background: #ffebee; }
+        .status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.success { background: #4caf50; color: white; }
+        .status.error { background: #f44336; color: white; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-danger:hover { background: #e53935; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-success:hover { background: #43a047; }
+        .actions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .log-output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1e1e1e;
+            color: #00ff00;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        .log-output.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Diagnóstico Rápido</h1>
+            <p>Verificando estado del sistema...</p>
+        </div>
+        
+        <div class="content">
+            <div id="test-1" class="test-item pending">
+                <span>1. Verificar servidor PHP</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div id="test-2" class="test-item pending">
+                <span>2. Verificar conexión a BD</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div id="test-3" class="test-item pending">
+                <span>3. Verificar tabla usuarios</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div id="test-4" class="test-item pending">
+                <span>4. Verificar usuario AdanGL</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div id="test-5" class="test-item pending">
+                <span>5. Verificar contraseña</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div id="test-6" class="test-item pending">
+                <span>6. Prueba de login API</span>
+                <span class="status pending"><span class="spinner"></span></span>
+            </div>
+            
+            <div class="actions" id="actions" style="display:none;">
+                <h3 id="result-title">Resultado</h3>
+                <p id="result-message" style="margin: 15px 0;"></p>
+                <div id="action-buttons"></div>
+            </div>
+            
+            <div class="log-output" id="log-output"></div>
+            <button class="btn btn-primary" onclick="toggleLog()" style="margin-top: 10px; display: none;" id="btn-toggle-log">
+                Ver Log Detallado
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        let logs = [];
+        let allTestsPassed = true;
+        
+        function addLog(msg) {
+            logs.push(new Date().toLocaleTimeString() + ' - ' + msg);
+            const logDiv = document.getElementById('log-output');
+            logDiv.innerHTML = logs.join('\n');
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function toggleLog() {
+            const logDiv = document.getElementById('log-output');
+            logDiv.classList.toggle('visible');
+            document.getElementById('btn-toggle-log').textContent = 
+                logDiv.classList.contains('visible') ? 'Ocultar Log' : 'Ver Log Detallado';
+        }
+        
+        function updateTest(id, success, message = '') {
+            const test = document.getElementById(id);
+            const statusSpan = test.querySelector('.status');
+            
+            test.classList.remove('pending');
+            test.classList.add(success ? 'success' : 'error');
+            
+            statusSpan.className = 'status ' + (success ? 'success' : 'error');
+            statusSpan.innerHTML = success ? '✓ OK' : '✗ FAIL';
+            
+            if (message) {
+                const msgSpan = document.createElement('div');
+                msgSpan.style.fontSize = '0.85em';
+                msgSpan.style.color = '#666';
+                msgSpan.style.marginTop = '5px';
+                msgSpan.textContent = message;
+                test.appendChild(msgSpan);
+            }
+            
+            if (!success) allTestsPassed = false;
+        }
+        
+        async function runDiagnostics() {
+            addLog('Iniciando diagnóstico...');
+            
+            // Test 1: PHP Server
+            try {
+                addLog('Test 1: Verificando servidor PHP...');
+                const r1 = await fetch('ping.php?t=' + Date.now());
+                const d1 = await r1.json();
+                updateTest('test-1', d1.ok, d1.ok ? 'Servidor respondiendo' : 'Sin respuesta');
+                addLog('Test 1: ' + (d1.ok ? 'OK' : 'FAIL'));
+            } catch (e) {
+                updateTest('test-1', false, 'Error: ' + e.message);
+                addLog('Test 1: ERROR - ' + e.message);
+            }
+            
+            // Test 2-5: Diagnostic API
+            try {
+                addLog('Test 2-5: Consultando API de diagnóstico...');
+                const r2 = await fetch('diagnostic-api.php?t=' + Date.now());
+                const d2 = await r2.json();
+                
+                addLog('Test 2: BD existe = ' + d2.db_exists);
+                updateTest('test-2', d2.db_exists, d2.db_exists ? 'Archivo BD encontrado' : 'BD no existe');
+                
+                addLog('Test 3: Tabla usuarios = ' + d2.usuarios_exists);
+                updateTest('test-3', d2.usuarios_exists, d2.usuarios_exists ? 'Tabla creada' : 'Tabla no existe');
+                
+                addLog('Test 4: Usuario AdanGL = ' + d2.has_admin);
+                updateTest('test-4', d2.has_admin, d2.has_admin ? 'Usuario existe' : 'Usuario no encontrado');
+                
+                addLog('Test 5: Total usuarios = ' + d2.user_count);
+                const hasUsers = d2.user_count > 0;
+                updateTest('test-5', hasUsers, hasUsers ? d2.user_count + ' usuario(s) en BD' : 'Sin usuarios');
+                
+            } catch (e) {
+                updateTest('test-2', false, 'Error en diagnóstico');
+                updateTest('test-3', false);
+                updateTest('test-4', false);
+                updateTest('test-5', false);
+                addLog('Test 2-5: ERROR - ' + e.message);
+            }
+            
+            // Test 6: Login API Test
+            try {
+                addLog('Test 6: Probando API de login...');
+                const formData = new FormData();
+                formData.append('username', 'AdanGL');
+                formData.append('password', 'Agl252002');
+                formData.append('modo', 'admin');
+                
+                const r6 = await fetch('api/api_login.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const d6 = await r6.json();
+                addLog('Test 6: Respuesta login = ' + JSON.stringify(d6));
+                
+                if (d6.success) {
+                    updateTest('test-6', true, 'Login exitoso ✓');
+                    addLog('Test 6: LOGIN OK');
+                } else {
+                    updateTest('test-6', false, 'Login falló: ' + (d6.message || 'Sin mensaje'));
+                    addLog('Test 6: LOGIN FAIL - ' + (d6.message || 'Sin mensaje'));
+                }
+            } catch (e) {
+                updateTest('test-6', false, 'Error: ' + e.message);
+                addLog('Test 6: ERROR - ' + e.message);
+            }
+            
+            // Mostrar resultado final
+            showFinalResult();
+        }
+        
+        function showFinalResult() {
+            const actions = document.getElementById('actions');
+            const title = document.getElementById('result-title');
+            const message = document.getElementById('result-message');
+            const buttons = document.getElementById('action-buttons');
+            const btnLog = document.getElementById('btn-toggle-log');
+            
+            actions.style.display = 'block';
+            btnLog.style.display = 'block';
+            
+            if (allTestsPassed) {
+                title.textContent = '✅ Sistema Operativo';
+                title.style.color = '#4caf50';
+                message.textContent = 'Todos los tests pasaron. El sistema está listo para usar.';
+                buttons.innerHTML = `
+                    <a href="index.php" class="btn btn-success">🏠 Ir al Login</a>
+                    <a href="javascript:location.reload()" class="btn btn-primary">🔄 Ejecutar de Nuevo</a>
+                `;
+            } else {
+                title.textContent = '⚠️ Problemas Detectados';
+                title.style.color = '#f44336';
+                message.textContent = 'Se encontraron errores. Usa las opciones de reparación.';
+                buttons.innerHTML = `
+                    <a href="force-init-db.php" class="btn btn-danger">🔧 Reparar Base de Datos</a>
+                    <a href="verify-superadmin.php" class="btn btn-primary">🔍 Verificación Detallada</a>
+                    <a href="javascript:location.reload()" class="btn btn-primary">🔄 Reintentar</a>
+                `;
+            }
+            
+            addLog('Diagnóstico completado.');
+        }
+        
+        // Ejecutar al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runDiagnostics, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Logs - TG Gestión</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            margin: 0;
+            padding: 10px;
+            overflow: hidden;
+        }
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 10px;
+            background: #222;
+            border-bottom: 2px solid #0f0;
+            margin-bottom: 10px;
+        }
+        .log-viewer {
+            flex: 1;
+            background: #0a0a0a;
+            border: 1px solid #0f0;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+        }
+        .log-entry.info { color: #0f0; }
+        .log-entry.error { color: #f00; }
+        .log-entry.warning { color: #ff0; }
+        .log-entry.success { color: #0f0; font-weight: bold; }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 5px 10px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #0c0; }
+        .status-bar {
+            background: #222;
+            padding: 10px;
+            border-top: 1px solid #0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-indicator.ok { background: #0f0; }
+        .status-indicator.error { background: #f00; }
+        .status-indicator.loading { background: #ff0; animation: blink 0.5s infinite; }
+        @keyframes blink { 0%, 49%, 100% { opacity: 1; } 50%, 99% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>📊 Monitor de Logs - TG Gestión</h2>
+            <button onclick="clearLogs()">Limpiar</button>
+            <button onclick="toggleAutoScroll()">Auto-Scroll: ON</button>
+            <button onclick="exportLogs()">Descargar</button>
+        </header>
+        
+        <div class="log-viewer" id="log-viewer"></div>
+        
+        <div class="status-bar">
+            <div>
+                <span id="status-indicator" class="status-indicator loading"></span>
+                <span id="status-text">Monitoreando...</span>
+            </div>
+            <div id="timestamp"></div>
+        </div>
+    </div>
+    
+    <script>
+        let autoScroll = true;
+        let logs = [];
+        let lastCheck = 0;
+        
+        async function loadLogs() {
+            try {
+                const res = await fetch('diagnostic-api.php?ts=' + Date.now());
+                const data = await res.json();
+                
+                // Procesar logs
+                if (data.logs && Array.isArray(data.logs)) {
+                    logs = data.logs;
+                    renderLogs();
+                }
+                
+                // Actualizar status
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                
+                if (data.db_connected) {
+                    indicator.className = 'status-indicator ok';
+                    statusText.textContent = '✓ BD conectada - ' + data.user_count + ' usuarios';
+                } else if (data.db_exists) {
+                    indicator.className = 'status-indicator loading';
+                    statusText.textContent = '⏳ Inicializando BD...';
+                } else {
+                    indicator.className = 'status-indicator loading';
+                    statusText.textContent = '⏳ Creando BD...';
+                }
+                
+                document.getElementById('timestamp').textContent = data.timestamp;
+                
+            } catch (e) {
+                console.error('Error cargando logs:', e);
+            }
+        }
+        
+        function renderLogs() {
+            const viewer = document.getElementById('log-viewer');
+            viewer.innerHTML = logs.map(log => {
+                let type = 'info';
+                if (log.includes('ERROR') || log.includes('Error')) type = 'error';
+                if (log.includes('WARNING') || log.includes('inicializando')) type = 'warning';
+                if (log.includes('✓') || log.includes('completada') || log.includes('correctamente')) type = 'success';
+                
+                return `<div class="log-entry ${type}">${escapeHtml(log)}</div>`;
+            }).join('');
+            
+            if (autoScroll) {
+                viewer.scrollTop = viewer.scrollHeight;
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function clearLogs() {
+            logs = [];
+            document.getElementById('log-viewer').innerHTML = '';
+        }
+        
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            event.target.textContent = 'Auto-Scroll: ' + (autoScroll ? 'ON' : 'OFF');
+        }
+        
+        function exportLogs() {
+            const text = logs.join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'tg-gestion-logs-' + new Date().getTime() + '.txt';
+            a.click();
+        }
+        
+        // Cargar logs cada 1 segundo
+        setInterval(loadLogs, 1000);
+        // Cargar inmediatamente
+        loadLogs();
+    </script>
+</body>
+</html>

@@ -1,223 +1,185 @@
 <?php
-// api/api_admin.php
-// VERSIÓN v5.0 Offline Edition
 
+header('Content-Type: application/json; charset=utf-8');
 session_start();
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-include 'db.php';
-header('Content-Type: application/json');
 
-// Validación básica de sesión
-if (!isset($_SESSION['usuario'])) {
-    echo json_encode(['success' => false, 'message' => 'Sesión expirada.']);
-    exit();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+ob_start();
+
+$root = dirname(dirname(__FILE__));
+$config_path = $root . '/config.php';
+if (file_exists($config_path)) {
+    require_once $config_path;
 }
+require_once $root . '/api/csrf.php';
 
 $accion = $_REQUEST['accion'] ?? '';
-$esSuperAdmin = ($_SESSION['role'] === 'superadmin');
-$esAdmin = ($_SESSION['role'] === 'admin' || $esSuperAdmin);
+$usuario = $_SESSION['usuario'] ?? null;
+$role = $_SESSION['role'] ?? '';
+$es_admin = ($role === 'admin' || $role === 'superadmin');
+
+$log_dir = dirname($root) . DIRECTORY_SEPARATOR . 'data';
+@mkdir($log_dir, 0777, true);
+$log_file = $log_dir . DIRECTORY_SEPARATOR . 'app.log';
+$color_file = $log_dir . DIRECTORY_SEPARATOR . 'color_tema.txt';
+
+function read_log_entries($file, $limit = 200) {
+    if (!file_exists($file)) return [];
+    $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!$lines) return [];
+    $slice = array_slice($lines, -1 * $limit);
+    $out = [];
+    foreach ($slice as $line) {
+        if (preg_match('/^\[(.*?)\]\s\[(.*?)\]\s(.*)$/', $line, $m)) {
+            $out[] = ['fecha' => $m[1], 'error' => $m[2] . ' | ' . $m[3]];
+        } else {
+            $out[] = ['fecha' => '', 'error' => $line];
+        }
+    }
+    return array_reverse($out);
+}
 
 try {
-    // --- 1. OBTENER COLOR (Acceso libre para pintar la interfaz) ---
+    // --- Registrar errores del frontend ---
+    if ($accion === 'log_error') {
+        if (!$usuario) {
+            echo json_encode(['success' => true, 'message' => 'Sin sesión']);
+            exit();
+        }
+        $raw = get_cached_raw_input();
+        $data = json_decode($raw, true) ?: [];
+        $tipo = $data['tipo'] ?? 'Error';
+        $mensaje = $data['mensaje'] ?? 'Sin mensaje';
+        $detalles = $data['detalles'] ?? '';
+        $url = $data['url'] ?? '';
+        $ua = $data['userAgent'] ?? '';
+
+        $msg = "$tipo: $mensaje";
+        if ($detalles) $msg .= " | $detalles";
+        if ($url) $msg .= " | url=$url";
+        if ($ua) $msg .= " | ua=$ua";
+
+        if (function_exists('app_log')) {
+            app_log('error', $msg);
+        } else {
+            @file_put_contents($log_file, '[' . date('Y-m-d H:i:s') . "] [error] $msg\n", FILE_APPEND);
+        }
+
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    // --- Ver errores (solo admin/superadmin) ---
+    if ($accion === 'ver_errores') {
+        if (!$es_admin) {
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+            exit();
+        }
+        $errores = read_log_entries($log_file, 200);
+        echo json_encode(['success' => true, 'errores' => $errores]);
+        exit();
+    }
+
+    // --- Limpiar errores (solo admin/superadmin) ---
+    if ($accion === 'limpiar_errores') {
+        if (!$es_admin) {
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+            exit();
+        }
+        require_csrf_or_die();
+        @file_put_contents($log_file, '');
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    // --- Obtener color ---
     if ($accion === 'get_color') {
-        $stmt = $conexion->query("SELECT valor FROM configuracion WHERE clave = 'color_tema'");
-        $res = $stmt->fetch();
-        $color = $res ? $res['valor'] : '#0d47a1'; 
+        $color = '#0d47a1';
+        if (file_exists($color_file)) {
+            $c = trim(@file_get_contents($color_file));
+            if (preg_match('/^#[0-9a-fA-F]{6}$/', $c)) $color = $c;
+        }
         echo json_encode(['success' => true, 'color' => $color]);
         exit();
     }
 
-    // --- 2. VER ERRORES (Solo Superadmin) ---
-    if ($accion === 'ver_errores') {
-        if (!$esSuperAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
-        }
-        $stmt = $conexion->query("SELECT * FROM log_errores ORDER BY id DESC LIMIT 50");
-        echo json_encode(['success' => true, 'errores' => $stmt->fetchAll()]);
-        exit();
-    }
-
-    // --- 3. GUARDAR COLOR (Solo Superadmin) ---
+    // --- Guardar color (solo admin/superadmin) ---
     if ($accion === 'save_color') {
-        if (!$esSuperAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Solo Superadmin cambia la configuración.']);
+        if (!$es_admin) {
+            echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
             exit();
         }
-        include_once 'csrf.php';
         require_csrf_or_die();
-
-        $nuevoColor = $_POST['color'];
-        $stmt = $conexion->prepare("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('color_tema', ?)");
-        $stmt->execute([$nuevoColor]);
-        
+        $nuevo = $_POST['color'] ?? '';
+        if (!preg_match('/^#[0-9a-fA-F]{6}$/', $nuevo)) {
+            echo json_encode(['success' => false, 'message' => 'Color inválido']);
+            exit();
+        }
+        @file_put_contents($color_file, $nuevo);
         echo json_encode(['success' => true]);
         exit();
     }
 
-    // === v5.0: NUEVAS FUNCIONALIDADES ===
-    
-    // --- 4. TOP PRODUCTO DEL MES (Admin+) ---
-    if ($accion === 'top_producto_mes') {
-        if (!$esAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
+    // --- Salud del sistema (admin+) ---
+    if ($accion === 'salud_sistema') {
+        if (!$es_admin) {
+            throw new Exception('Usuario no tiene permisos de admin');
         }
-        
-        $mesActual = date('Y-m');
-        $stmt = $conexion->prepare("
-            SELECT p.nombre, COUNT(vi.id) as ventas
-            FROM venta_items vi
-            INNER JOIN ventas v ON vi.venta_id = v.id
-            INNER JOIN productos p ON vi.producto_id = p.id
-            WHERE strftime('%Y-%m', v.fecha) = ?
-            GROUP BY vi.producto_id
-            ORDER BY ventas DESC
-            LIMIT 1
-        ");
-        $stmt->execute([$mesActual]);
-        $producto = $stmt->fetch();
-        
-        echo json_encode([
-            'success' => true, 
-            'producto' => $producto ? $producto : ['nombre' => 'Sin datos', 'ventas' => 0]
-        ]);
-        exit();
-    }
 
-    // --- 5. VENTAS DEL MES (Admin+) ---
-    if ($accion === 'ventas_mes') {
-        if (!$esAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
+        if (!defined('DB_PATH')) {
+            throw new Exception('DB_PATH no definido en config.php');
         }
-        
-        $mesActual = date('Y-m');
-        $mesAnterior = date('Y-m', strtotime('-1 month'));
-        
-        // Mes actual
-        $stmt = $conexion->prepare("SELECT COALESCE(SUM(total), 0) as total FROM ventas WHERE strftime('%Y-%m', fecha) = ?");
-        $stmt->execute([$mesActual]);
-        $totalActual = $stmt->fetch()['total'];
-        
-        // Mes anterior
-        $stmt->execute([$mesAnterior]);
-        $totalAnterior = $stmt->fetch()['total'];
-        
-        // Comparativa
-        $comparativa = 0;
-        if ($totalAnterior > 0) {
-            $comparativa = round((($totalActual - $totalAnterior) / $totalAnterior) * 100, 1);
-        }
-        
-        echo json_encode([
-            'success' => true,
-            'total' => $totalActual,
-            'comparativa' => $comparativa
-        ]);
-        exit();
-    }
 
-    // --- 6. ESTADÍSTICAS GLOBALES (SuperAdmin) ---
-    if ($accion === 'stats_globales') {
-        if (!$esSuperAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
+        $db_path = DB_PATH;
+        if (!file_exists($db_path)) {
+            throw new Exception('Base de datos no existe: ' . $db_path);
         }
-        
-        // Tamaño de BD
-        $dbPath = getenv('APPDATA') . '/TG_Gestion/database.sqlite';
-        $dbSize = file_exists($dbPath) ? round(filesize($dbPath) / 1024 / 1024, 2) . ' MB' : '--';
-        
-        // Ventas totales
+
+        $conexion = new PDO('sqlite:' . $db_path, '', '', [
+            PDO::ATTR_TIMEOUT => 10,
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]);
+
+        $db_size = round(filesize($db_path) / 1024 / 1024, 2);
+        $stmt = $conexion->query("SELECT COUNT(*) as cnt FROM usuarios");
+        $usuarios = intval($stmt->fetch()['cnt'] ?? 0);
+        $stmt = $conexion->query("SELECT COUNT(*) as cnt FROM productos WHERE activo = 1");
+        $productos = intval($stmt->fetch()['cnt'] ?? 0);
         $stmt = $conexion->query("SELECT COALESCE(SUM(total), 0) as total FROM ventas");
-        $ventasTotal = $stmt->fetch()['total'];
-        
-        // Total usuarios
-        $stmt = $conexion->query("SELECT COUNT(*) as count FROM usuarios");
-        $usuariosTotal = $stmt->fetch()['count'];
-        
-        // Última venta
-        $stmt = $conexion->query("SELECT fecha FROM ventas ORDER BY id DESC LIMIT 1");
-        $ultimaVenta = $stmt->fetch();
-        $ultimaVentaStr = $ultimaVenta ? date('d/m/Y H:i', strtotime($ultimaVenta['fecha'])) : 'Nunca';
-        
+        $ventas = floatval($stmt->fetch()['total'] ?? 0);
+        $stmt = $conexion->query("SELECT COALESCE(SUM(total), 0) as total FROM ventas WHERE tipo_pago = 'fiado' AND fiado_pagado = 0");
+        $fiados = floatval($stmt->fetch()['total'] ?? 0);
+        $disk_free = @disk_free_space(dirname($db_path));
+        $disk_gb = $disk_free ? round($disk_free / 1024 / 1024 / 1024, 2) : 0;
+
         echo json_encode([
             'success' => true,
-            'db_size' => $dbSize,
-            'ventas_total' => $ventasTotal,
-            'usuarios_total' => $usuariosTotal,
-            'ultima_venta' => $ultimaVentaStr
-        ]);
+            'db_size_mb' => $db_size,
+            'usuarios_total' => $usuarios,
+            'productos_activos' => $productos,
+            'ventas_total' => $ventas,
+            'fiados_pendientes' => $fiados,
+            'disk_free_gb' => $disk_gb
+        ], JSON_UNESCAPED_UNICODE);
         exit();
     }
 
-    // --- 7. OPTIMIZAR BD (SuperAdmin) ---
-    if ($accion === 'optimizar_bd') {
-        if (!$esSuperAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
-        }
-        
-        try {
-            $dbPath = getenv('APPDATA') . '/TG_Gestion/database.sqlite';
-            $sizeBefore = file_exists($dbPath) ? filesize($dbPath) : 0;
-            
-            // VACUUM requiere que no haya transacciones activas
-            $conexion->exec("VACUUM");
-            $conexion->exec("ANALYZE");
-            
-            clearstatcache(); // Limpiar cache de filesize
-            $sizeAfter = file_exists($dbPath) ? filesize($dbPath) : 0;
-            $ahorro = round(($sizeBefore - $sizeAfter) / 1024, 2) . ' KB';
-            
-            echo json_encode(['success' => true, 'ahorro' => $ahorro]);
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Error al optimizar: ' . $e->getMessage()]);
-        }
-        exit();
-    }
-
-    // --- 8. RESETEAR SISTEMA (SuperAdmin) ---
-    if ($accion === 'resetear_sistema') {
-        if (!$esSuperAdmin) {
-            echo json_encode(['success' => false, 'message' => 'Acceso denegado.']);
-            exit();
-        }
-        
-        // Limpiar todas las tablas excepto usuarios
-        $conexion->exec("DELETE FROM ventas");
-        $conexion->exec("DELETE FROM venta_items");
-        $conexion->exec("DELETE FROM registros");
-        $conexion->exec("DELETE FROM productos");
-        $conexion->exec("DELETE FROM fiados");
-        $conexion->exec("DELETE FROM septimas");
-        $conexion->exec("DELETE FROM log_errores");
-        
-        // Reset autoincrement
-        $conexion->exec("DELETE FROM sqlite_sequence WHERE name IN ('ventas','venta_items','registros','productos','fiados','septimas')");
-        
-        echo json_encode(['success' => true, 'message' => 'Sistema reseteado correctamente']);
-        exit();
-    }
-
-    // --- 9. LOG DE ERRORES (Sistema) ---
-    if ($accion === 'log_error') {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $tipo = $data['tipo'] ?? 'Unknown';
-        $mensaje = $data['mensaje'] ?? '';
-        $detalles = $data['detalles'] ?? '';
-        $url = $data['url'] ?? '';
-        
-        $stmt = $conexion->prepare("INSERT INTO log_errores (tipo, mensaje, detalles, url, fecha) VALUES (?, ?, ?, ?, datetime('now'))");
-        $stmt->execute([$tipo, $mensaje, $detalles, $url]);
-        
-        echo json_encode(['success' => true]);
-        exit();
-    }
-
+    echo json_encode(['success' => false, 'message' => 'Accion invalida: ' . $accion]);
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Error admin: ' . $e->getMessage()]);
+    ob_clean();
+    if (function_exists('app_log')) {
+        app_log('error', 'api_admin.php: ' . $e->getMessage());
+    }
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ], JSON_UNESCAPED_UNICODE);
 }
 ?>
