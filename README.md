@@ -4,7 +4,13 @@
 
 ---
 
-## 📌 Versión Actual: v10.5 (Preliminar)
+## ⚠️ EXCLUSIVO PARA AGUA VIVA
+
+**Esta aplicación es de uso exclusivo para Agua Viva. No debe ser distribuida, copiada o usada por terceros sin autorización explícita.**
+
+---
+
+## 📋 Versión Actual: v10.5 (Preliminar)
 
 > ⚠️ Esta es una versión preliminar en fase de prueba. Los cambios principales se encuentran disponibles y funcionan, pero estamos recibiendo feedback de usuarios antes de la versión final.
 
@@ -65,7 +71,7 @@ Los reportes ahora se ven profesionales y te dan toda la información en una mir
 - 💰 **Ventas** → Todo desglosado por producto, con clientes
 - 📝 **Registros** → Ingresos, gastos y todo lo que se mueve
 - 📅 **Séptimas** → Quién debe, quién pagó
-- 🏪 **Arcas por Servicio** → Ganancia por cada sección
+- 🏠 **Arcas por Servicio** → Ganancia por cada sección
 - 📋 **Cortes Diarios** → Historial de cierres
 - 👥 **Clientes** → Lista completa con deuda y historial
 
@@ -85,7 +91,7 @@ Todo está en un solo lugar = menos confusión, más claridad.
 
 ---
 
-## 🚀 Lo Que Sigue Funcionando (Como Antes)
+## ✅ Lo Que Sigue Funcionando (Como Antes)
 
 ✅ Tu inventario de productos  
 ✅ Tus ventas y historial  
@@ -145,7 +151,7 @@ R: Los archivos están listos en GitHub. Solo reemplaza los correspondientes en 
 
 | Versión | Estado | Cambios |  
 |---------|--------|---------|  
-| **v10.5** | 🟡 Preliminar | Cuentas inteligente, Cortes funcionales, Reportes profesionales |  
+| **v10.5** | 🏠 Preliminar | Cuentas inteligente, Cortes funcionales, Reportes profesionales |  
 | **v10** | ✅ Estable | Base de todo |  
 
 ---
@@ -160,11 +166,11 @@ Estamos trabajando en:
 
 ---
 
-## 👤 ¿Problemas o Sugerencias?
+## 📧 ¿Problemas o Sugerencias?
 
-Si encuentras algo que no funciona o tienes una idea, contáctanos.
+Si encuentras algo que no funciona o tienes una idea, contacta al equipo de soporte.
 
 ---
 
 **TG Gestión Estables v10.5 Preliminar**  
-Profesionalidad y simplicidad para tu negocio 🐴
+Uso Exclusivo Agua Viva 🏇
