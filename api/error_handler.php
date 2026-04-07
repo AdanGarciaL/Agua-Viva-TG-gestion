@@ -289,5 +289,3 @@ function obtener_resumen_errores($log_dir, $ultimos = 50) {
     return array_slice(array_reverse($errores), 0, $ultimos);
 }
 
-?>
-

@@ -61,12 +61,11 @@ try {
                 codigo_barras VARCHAR(255),
                 precio_venta DECIMAL(10,2) NOT NULL,
                 stock INT NOT NULL,
-                foto_url TEXT,
                 activo TINYINT DEFAULT 1
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, foto_url) VALUES (?, ?, ?, ?, ?)");
-            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50, '']);
+            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock) VALUES (?, ?, ?, ?)");
+            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50]);
 
             // 3. TABLA VENTAS
             $pdo->exec("CREATE TABLE IF NOT EXISTS ventas (
@@ -76,7 +75,6 @@ try {
                 total DECIMAL(10,2),
                 fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
                 vendedor VARCHAR(255),
-                foto_referencia TEXT,
                 tipo_pago VARCHAR(50),
                 nombre_fiado VARCHAR(255),
                 fiado_pagado TINYINT DEFAULT 0
@@ -140,12 +138,11 @@ try {
                 codigo_barras TEXT,
                 precio_venta REAL NOT NULL,
                 stock INTEGER NOT NULL,
-                foto_url TEXT,
                 activo INTEGER DEFAULT 1
             )");
 
-            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, foto_url) VALUES (?, ?, ?, ?, ?)");
-            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50, '']);
+            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock) VALUES (?, ?, ?, ?)");
+            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50]);
 
             // 3. TABLA VENTAS
             $pdo->exec("CREATE TABLE IF NOT EXISTS ventas (
@@ -155,7 +152,6 @@ try {
                 total REAL,
                 fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
                 vendedor TEXT,
-                foto_referencia TEXT,
                 tipo_pago TEXT,
                 nombre_fiado TEXT,
                 fiado_pagado INTEGER DEFAULT 0

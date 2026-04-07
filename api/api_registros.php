@@ -128,6 +128,24 @@ try {
         exit();
     }
 
+    // --- 3b. ELIMINAR TODOS LOS REGISTROS ---
+    if ($accion === 'eliminar_todos' && $esAdmin) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
+
+        $deleted = 0;
+        if (defined('DB_DRIVER') && DB_DRIVER === 'mysql') {
+            $deleted = intval($conexion->query("SELECT COUNT(*) AS c FROM registros")->fetch()['c'] ?? 0);
+            $conexion->exec("TRUNCATE TABLE registros");
+        } else {
+            $deleted = intval($conexion->query("SELECT COUNT(*) AS c FROM registros")->fetch()['c'] ?? 0);
+            $conexion->exec("DELETE FROM registros");
+        }
+
+        echo json_encode(['success' => true, 'deleted' => $deleted]);
+        exit();
+    }
+
     // --- 4. CORTE DE CAJA (NUEVO) ---
     if ($accion === 'corte_dia') {
         // A. Sumar Ventas en Efectivo de HOY desde tabla ventas (fuente única)

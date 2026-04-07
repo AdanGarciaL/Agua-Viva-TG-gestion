@@ -1,92 +1,83 @@
 <?php
 /**
- * ping.php - Verificar que la aplicación está lista
- * VERSIÓN BLINDADA - Garantiza que todo esté listo
+ * ping.php - Health check del sistema
+ * Verifica que la aplicación está lista para usar
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
 
 $response = [
     'ok' => false,
-    'timestamp' => date('Y-m-d H:i:s'),
-    'details' => []
+    'timestamp' => date('Y-m-d H:i:s')
 ];
 
 try {
+    // Cargar configuración
     require_once 'config.php';
     
-    // Verificar que DB_PATH está definido
+    // Verificar DB_PATH
     if (!defined('DB_PATH')) {
-        $response['details'][] = 'DB_PATH not defined';
+        $response['ok'] = false;
+        $response['error'] = 'DB_PATH not defined';
         http_response_code(503);
         echo json_encode($response);
         exit;
     }
     
-    // Esperar a que el archivo de BD exista (máximo 5 segundos)
-    $wait_count = 0;
-    while (!file_exists(DB_PATH) && $wait_count < 10) {
-        usleep(500000); // 0.5 segundos
-        $wait_count++;
+    // Esperar a que exista la BD
+    $wait = 0;
+    while (!file_exists(DB_PATH) && $wait < 10) {
+        usleep(500000);
+        $wait++;
     }
     
     if (!file_exists(DB_PATH)) {
-        $response['details'][] = 'Database file does not exist - iniciando creación';
+        $response['ok'] = false;
+        $response['error'] = 'Database file not found';
         http_response_code(503);
         echo json_encode($response);
         exit;
     }
     
     // Conectar a BD
-    $conexion = new PDO("sqlite:" . DB_PATH, '', '', [
+    $db = new PDO("sqlite:" . DB_PATH, '', '', [
         PDO::ATTR_TIMEOUT => 5,
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
     ]);
     
-    // Test de conexión
-    $test = $conexion->query("SELECT 1")->fetch();
+    // Test conexión
+    $test = $db->query("SELECT 1")->fetch();
     if (!$test) {
-        $response['details'][] = 'Database connection test failed';
-        http_response_code(503);
-        echo json_encode($response);
-        exit;
+        throw new Exception('DB connection test failed');
     }
     
     // Verificar tabla usuarios
-    $users_table = $conexion->query("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='usuarios'")->fetch();
-    if ($users_table['cnt'] == 0) {
-        $response['details'][] = 'usuarios table does not exist';
-        http_response_code(503);
-        echo json_encode($response);
-        exit;
+    $tables = $db->query("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='usuarios'")->fetch();
+    if (!$tables || $tables['cnt'] == 0) {
+        throw new Exception('usuarios table not found');
     }
     
-    // Verificar usuario AdanGL
-    $admin_user = $conexion->query("SELECT id, username, role FROM usuarios WHERE username='AdanGL' LIMIT 1")->fetch();
-    if (!$admin_user) {
-        $response['details'][] = 'Default user (AdanGL) does not exist';
-        http_response_code(503);
-        echo json_encode($response);
-        exit;
+    // Verificar usuario admin
+    $user = $db->query("SELECT id, username, role FROM usuarios WHERE username='AdanGL' LIMIT 1")->fetch();
+    if (!$user) {
+        throw new Exception('Default user not found');
     }
     
-    // ✓ TODO LISTO
+    // Todo OK
     $response['ok'] = true;
-    $response['db'] = 'sqlite';
-    $response['db_path'] = DB_PATH;
-    $response['users_table_exists'] = true;
-    $response['default_user'] = $admin_user['username'];
-    $response['user_role'] = $admin_user['role'];
-    $response['details'][] = 'Application ready ✓';
+    $response['status'] = 'ready';
+    $response['user'] = $user['username'];
+    $response['role'] = $user['role'];
     
     http_response_code(200);
     
 } catch (Exception $e) {
     $response['ok'] = false;
     $response['error'] = $e->getMessage();
-    $response['details'][] = 'Exception: ' . $e->getMessage();
     http_response_code(503);
 }
 
 echo json_encode($response);
+?>

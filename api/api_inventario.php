@@ -1,11 +1,13 @@
 <?php
 // api/api_inventario.php - v4.1 Reconexión automática
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);  // NO mostrar errores HTML (solo loguear)
 include 'db.php';
 include 'error_handler.php';
-header('Content-Type: application/json');
 
 // Asegurar conexión de BD
 if (!asegurar_conexion_db()) {
@@ -97,7 +99,12 @@ try {
         $codigo = trim($_POST['codigo'] ?? '');
         $precio = $_POST['precio'] ?? 0;
         $stock = $_POST['stock'] ?? 0;
-        $foto = trim($_POST['foto'] ?? '');
+        $tipo_producto = strtolower(trim($_POST['tipo_producto'] ?? 'producto')); // 'producto' o 'preparado'
+        
+        // Validar tipo
+        if (!in_array($tipo_producto, ['producto', 'preparado'])) {
+            $tipo_producto = 'producto';
+        }
         
         // Validación básica: nombre es obligatorio, precio y stock deben ser > 0
         if (empty($nombre) || $precio <= 0 || $stock < 0) {
@@ -106,14 +113,14 @@ try {
         
         try {
             // Log de intento
-            $pre_log = "INSERT: nombre=$nombre, codigo=$codigo, precio=$precio, stock=$stock\n";
+            $pre_log = "INSERT: nombre=$nombre, codigo=$codigo, precio=$precio, stock=$stock, tipo=$tipo_producto\n";
             @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_debug.log',
                 date('Y-m-d H:i:s') . " [api_inventario CREATE] " . $pre_log,
                 FILE_APPEND
             );
             
-            $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, foto_url) VALUES (?, ?, ?, ?, ?)");
-            $resultado = $stmt->execute([$nombre, $codigo, floatval($precio), intval($stock), $foto]);
+            $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, tipo_producto) VALUES (?, ?, ?, ?, ?)");
+            $resultado = $stmt->execute([$nombre, $codigo, floatval($precio), intval($stock), $tipo_producto]);
             
             if (!$resultado) {
                 throw new Exception("Execute retornó false");
@@ -131,6 +138,19 @@ try {
             $verify = $conexion->query("SELECT * FROM productos WHERE id = $nuevo_id")->fetch();
             if (!$verify) {
                 throw new Exception("Producto no se encontró después de INSERT");
+            }
+            
+            // INTEGRACIÓN: Si se ingresa stock inicial > 0, crear registro automático en tabla registros
+            if ($stock > 0) {
+                $stmtReg = $conexion->prepare("
+                    INSERT INTO registros (tipo, concepto, monto, usuario, categoria, fecha)
+                    VALUES ('ingreso', ?, ?, ?, 'ingreso_tienda', datetime('now', 'localtime'))
+                ");
+                $stmtReg->execute([
+                    "Stock Inicial: $nombre (x$stock)",
+                    floatval($stock * floatval($precio)),
+                    $_SESSION['usuario'] ?? 'sistema'
+                ]);
             }
             
             $success_msg = "Producto creado (ID: $nuevo_id). Verificación OK.";
@@ -170,16 +190,21 @@ try {
         $nuevo_codigo = trim($_POST['codigo'] ?? '');
         $nuevo_precio = floatval($_POST['precio']);
         $nuevo_stock = intval($_POST['stock']);
-        $nueva_foto = trim($_POST['foto'] ?? '');
+        $nuevo_tipo = strtolower(trim($_POST['tipo_producto'] ?? 'producto'));
+        
+        // Validar tipo
+        if (!in_array($nuevo_tipo, ['producto', 'preparado'])) {
+            $nuevo_tipo = 'producto';
+        }
         
         // Actualizar producto
-        $stmt = $conexion->prepare("UPDATE productos SET nombre=?, codigo_barras=?, precio_venta=?, stock=?, foto_url=? WHERE id=?");
+        $stmt = $conexion->prepare("UPDATE productos SET nombre=?, codigo_barras=?, precio_venta=?, stock=?, tipo_producto=? WHERE id=?");
         $stmt->execute([
             $nuevo_nombre, 
             $nuevo_codigo, 
             $nuevo_precio, 
             $nuevo_stock, 
-            $nueva_foto, 
+            $nuevo_tipo, 
             $id
         ]);
         
@@ -196,8 +221,8 @@ try {
         if (intval($anterior['stock']) !== $nuevo_stock) {
             registrar_auditoria('productos', $id, 'stock', $anterior['stock'], $nuevo_stock);
         }
-        if ($anterior['foto_url'] !== $nueva_foto) {
-            registrar_auditoria('productos', $id, 'foto_url', $anterior['foto_url'], $nueva_foto);
+        if (($anterior['tipo_producto'] ?? 'producto') !== $nuevo_tipo) {
+            registrar_auditoria('productos', $id, 'tipo_producto', ($anterior['tipo_producto'] ?? 'producto'), $nuevo_tipo);
         }
         
         echo json_encode(['success' => true, 'message' => 'Producto Actualizado']);

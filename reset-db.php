@@ -37,11 +37,11 @@ try {
     $stmt = $conexion->prepare("INSERT INTO usuarios (username, password, role) VALUES (?, ?, ?)");
     $stmt->execute(['AdanGL', $pass, 'superadmin']);
     
-    $conexion->exec("CREATE TABLE productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, foto_url TEXT, activo INTEGER DEFAULT 1)");
+    $conexion->exec("CREATE TABLE productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, activo INTEGER DEFAULT 1)");
     $stmt = $conexion->prepare("INSERT INTO productos (nombre, precio_venta, stock) VALUES (?, ?, ?)");
     $stmt->execute(['Producto Ejemplo', 100, 50]);
     
-    $conexion->exec("CREATE TABLE ventas (id INTEGER PRIMARY KEY AUTOINCREMENT, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, foto_referencia TEXT, tipo_pago TEXT, nombre_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
+    $conexion->exec("CREATE TABLE ventas (id INTEGER PRIMARY KEY AUTOINCREMENT, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, tipo_pago TEXT, nombre_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
     
     $conexion->exec("CREATE TABLE registros (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, tipo TEXT, concepto TEXT, monto REAL, usuario TEXT, categoria TEXT, servicio TEXT)");
     

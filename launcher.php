@@ -98,8 +98,8 @@ try {
     
     // 4. Crear resto de tablas
     log_msg("4. Creando tablas adicionales...");
-    $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, foto_url TEXT, activo INTEGER DEFAULT 1)");
-    $conexion->exec("CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, foto_referencia TEXT, tipo_pago TEXT, nombre_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
+    $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, activo INTEGER DEFAULT 1)");
+    $conexion->exec("CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, tipo_pago TEXT, nombre_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
     $conexion->exec("CREATE TABLE IF NOT EXISTS registros (id INTEGER PRIMARY KEY, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, tipo TEXT, concepto TEXT, monto REAL, usuario TEXT, categoria TEXT, servicio TEXT)");
     $conexion->exec("CREATE TABLE IF NOT EXISTS septimas (id INTEGER PRIMARY KEY, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, nombre_padrino TEXT, monto REAL, usuario_registro TEXT, pagado INTEGER DEFAULT 0, tipo TEXT DEFAULT 'normal', servicio TEXT)");
     $conexion->exec("CREATE TABLE IF NOT EXISTS log_errores (id INTEGER PRIMARY KEY, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, tipo TEXT, mensaje TEXT, detalles TEXT, url TEXT)");

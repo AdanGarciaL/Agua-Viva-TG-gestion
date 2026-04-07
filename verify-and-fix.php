@@ -78,7 +78,6 @@ try {
             precio_venta REAL,
             stock INTEGER,
             stock_minimo INTEGER DEFAULT 10,
-            foto_url TEXT,
             activo INTEGER DEFAULT 1
         )",
         'ventas' => "CREATE TABLE IF NOT EXISTS ventas (
@@ -88,7 +87,6 @@ try {
             total REAL,
             fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
             vendedor TEXT,
-            foto_referencia TEXT,
             tipo_pago TEXT,
             nombre_fiado TEXT,
             fiado_pagado INTEGER DEFAULT 0

@@ -15,6 +15,7 @@ if (file_exists($config_path)) {
     require_once $config_path;
 }
 require_once $root . '/api/csrf.php';
+require_once $root . '/api/db.php';
 
 $accion = $_REQUEST['accion'] ?? '';
 $usuario = $_SESSION['usuario'] ?? null;
@@ -22,9 +23,18 @@ $role = $_SESSION['role'] ?? '';
 $es_admin = ($role === 'admin' || $role === 'superadmin');
 
 $log_dir = dirname($root) . DIRECTORY_SEPARATOR . 'data';
-@mkdir($log_dir, 0777, true);
+if (!is_dir($log_dir)) {
+    @mkdir($log_dir, 0777, true);
+}
 $log_file = $log_dir . DIRECTORY_SEPARATOR . 'app.log';
 $color_file = $log_dir . DIRECTORY_SEPARATOR . 'color_tema.txt';
+
+function to_log_string($value) {
+    if (is_null($value)) return '';
+    if (is_scalar($value)) return (string)$value;
+    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return $encoded !== false ? $encoded : '[valor-no-serializable]';
+}
 
 function read_log_entries($file, $limit = 200) {
     if (!file_exists($file)) return [];
@@ -43,6 +53,36 @@ function read_log_entries($file, $limit = 200) {
 }
 
 try {
+    // --- 0. AUTENTICAR ADMIN (Para operaciones sensibles desde frontend) ---
+    if ($accion === 'autenticar_admin') {
+        $usuario = $_POST['usuario'] ?? '';
+        $password = $_POST['password'] ?? '';
+        
+        if (empty($usuario) || empty($password)) {
+            echo json_encode(['success' => false, 'message' => 'Credenciales incompletas']);
+            exit();
+        }
+        
+        // Verificar que sea admin o superadmin
+        $stmt = $conexion->prepare("SELECT id, password, role FROM usuarios WHERE username = ?");
+        $stmt->execute([$usuario]);
+        $user = $stmt->fetch();
+        
+        if (!$user || ($user['role'] !== 'admin' && $user['role'] !== 'superadmin')) {
+            echo json_encode(['success' => false, 'message' => 'Usuario no válido o sin permisos']);
+            exit();
+        }
+        
+        // Verificar contraseña
+        if (!password_verify($password, $user['password'])) {
+            echo json_encode(['success' => false, 'message' => 'Contraseña incorrecta']);
+            exit();
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Autenticado', 'role' => $user['role']]);
+        exit();
+    }
+
     // --- Registrar errores del frontend ---
     if ($accion === 'log_error') {
         if (!$usuario) {
@@ -51,11 +91,11 @@ try {
         }
         $raw = get_cached_raw_input();
         $data = json_decode($raw, true) ?: [];
-        $tipo = $data['tipo'] ?? 'Error';
-        $mensaje = $data['mensaje'] ?? 'Sin mensaje';
-        $detalles = $data['detalles'] ?? '';
-        $url = $data['url'] ?? '';
-        $ua = $data['userAgent'] ?? '';
+        $tipo = to_log_string($data['tipo'] ?? 'Error');
+        $mensaje = to_log_string($data['mensaje'] ?? 'Sin mensaje');
+        $detalles = to_log_string($data['detalles'] ?? '');
+        $url = to_log_string($data['url'] ?? '');
+        $ua = to_log_string($data['userAgent'] ?? '');
 
         $msg = "$tipo: $mensaje";
         if ($detalles) $msg .= " | $detalles";

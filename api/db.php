@@ -7,8 +7,10 @@ ini_set('display_errors', '0'); // NUNCA mostrar errores en output
 ini_set('log_errors', '1');
 
 // NO HEADERS AQUÍ - pueden causar problemas con descargas
-ini_set('session.cookie_httponly', 1);
-ini_set('session.use_strict_mode', 1);
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_strict_mode', 1);
+}
 
 // Load config
 if (!defined('DB_PATH')) {
@@ -25,7 +27,9 @@ $db_driver = 'sqlite';
 define('DB_DRIVER', 'sqlite');
 
 $log_dir = dirname($db_file);
-if (!is_dir($log_dir)) @mkdir($log_dir, 0777, true);
+if (!is_dir($log_dir)) {
+    @mkdir($log_dir, 0777, true);
+}
 
 $conexion = null;
 $inicializar = false;
@@ -77,12 +81,12 @@ if ($conexion && $inicializar) {
         @file_put_contents($log_dir . '/db_errors.log', 
             date('Y-m-d H:i:s') . " - Usuario AdanGL creado/verificado exitosamente\n", FILE_APPEND);
 
-        $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, foto_url TEXT, activo INTEGER DEFAULT 1)");
+        $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, tipo_producto TEXT DEFAULT 'producto', activo INTEGER DEFAULT 1)");
         
         $stmt = $conexion->prepare("INSERT INTO productos (nombre, precio_venta, stock) VALUES (?, ?, ?)");
         $stmt->execute(['Producto Ejemplo', 100, 50]);
 
-        $conexion->exec("CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY AUTOINCREMENT, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, foto_referencia TEXT, tipo_pago TEXT, nombre_fiado TEXT, grupo_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
+        $conexion->exec("CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY AUTOINCREMENT, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, tipo_pago TEXT, nombre_fiado TEXT, grupo_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
         
         $conexion->exec("CREATE TABLE IF NOT EXISTS registros (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, tipo TEXT, concepto TEXT, monto REAL, usuario TEXT, categoria TEXT, servicio TEXT)");
         
@@ -92,6 +96,12 @@ if ($conexion && $inicializar) {
         
         $conexion->exec("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, usuario TEXT, accion TEXT, tabla TEXT, registro_id INTEGER, datos_anteriores TEXT, datos_nuevos TEXT)");
         
+        $conexion->exec("CREATE TABLE IF NOT EXISTS cuentas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_cuenta TEXT UNIQUE NOT NULL, celular TEXT, estado_cuenta TEXT DEFAULT 'activo', saldo_total REAL DEFAULT 0, fecha_primer_compra DATETIME, fecha_ultimo_compra DATETIME, fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP, notas TEXT)");
+        
+        $conexion->exec("CREATE TABLE IF NOT EXISTS confirmacion_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, venta_id INTEGER, metodo_pago TEXT, comprobante_referencia TEXT, estado TEXT DEFAULT 'pendiente', fecha_solicitud DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_confirmacion DATETIME, usuario_confirmo TEXT, notas TEXT)");
+        
+        $conexion->exec("CREATE TABLE IF NOT EXISTS cortes_caja (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_apertura DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_cierre DATETIME, usuario_apertura TEXT, usuario_cierre TEXT, saldo_inicial REAL DEFAULT 0, saldo_final REAL DEFAULT 0, ingresos_efectivo REAL DEFAULT 0, ingresos_tarjeta REAL DEFAULT 0, ingresos_transferencia REAL DEFAULT 0, egresos REAL DEFAULT 0, diferencia REAL DEFAULT 0, estado TEXT DEFAULT 'abierto', notas TEXT)");
+        
         $conexion->exec("CREATE TABLE IF NOT EXISTS configuracion (clave TEXT PRIMARY KEY, valor TEXT)");
         
         $stmt = $conexion->prepare("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES (?, ?)");
@@ -100,7 +110,9 @@ if ($conexion && $inicializar) {
         // Crear backup de BD inicial
         try {
             $backupDir = $log_dir . DIRECTORY_SEPARATOR . 'backups';
-            if (!is_dir($backupDir)) @mkdir($backupDir, 0777, true);
+            if (!is_dir($backupDir)) {
+                @mkdir($backupDir, 0777, true);
+            }
             $backupFile = $backupDir . DIRECTORY_SEPARATOR . 'database_init_' . date('Ymd_His') . '.sqlite';
             copy($db_file, $backupFile);
             @file_put_contents($log_dir . '/db_errors.log', 
@@ -137,6 +149,79 @@ if ($conexion) {
             $conexion->exec("ALTER TABLE ventas ADD COLUMN grupo_fiado TEXT");
             @file_put_contents($log_dir . '/db_errors.log', 
                 date('Y-m-d H:i:s') . " - Migración: Columna grupo_fiado agregada a tabla ventas\n", 
+                FILE_APPEND);
+        }
+        
+        // Verificar columnas faltantes en tabla ventas
+        $hasCelularFiado = false;
+        $hasEstadoCuenta = false;
+        $hasMetodoPago = false;
+        $hasTipoProducto = false;
+        foreach ($columns as $col) {
+            if ($col['name'] === 'celular_fiado') $hasCelularFiado = true;
+            if ($col['name'] === 'estado_cuenta') $hasEstadoCuenta = true;
+            if ($col['name'] === 'metodo_pago') $hasMetodoPago = true;
+        }
+        
+        // También verificar columna tipo_producto en tabla productos
+        $testProd = $conexion->query("PRAGMA table_info(productos)");
+        $columnsProd = $testProd->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($columnsProd as $col) {
+            if ($col['name'] === 'tipo_producto') $hasTipoProducto = true;
+        }
+        
+        if (!$hasCelularFiado) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN celular_fiado TEXT");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Columna celular_fiado agregada a tabla ventas\n", 
+                FILE_APPEND);
+        }
+        
+        if (!$hasEstadoCuenta) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN estado_cuenta TEXT DEFAULT 'pendiente'");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Columna estado_cuenta agregada a tabla ventas\n", 
+                FILE_APPEND);
+        }
+        
+        if (!$hasMetodoPago) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN metodo_pago TEXT");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Columna metodo_pago agregada a tabla ventas\n", 
+                FILE_APPEND);
+        }
+        
+        if (!$hasTipoProducto) {
+            $conexion->exec("ALTER TABLE productos ADD COLUMN tipo_producto TEXT DEFAULT 'producto'");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Columna tipo_producto agregada a tabla productos\n", 
+                FILE_APPEND);
+        }
+        
+        // Verificar si existe la tabla cuentas
+        $tablesCuentas = $conexion->query("SELECT name FROM sqlite_master WHERE type='table' AND name='cuentas'")->fetchAll();
+        if (count($tablesCuentas) === 0) {
+            $conexion->exec("CREATE TABLE cuentas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_cuenta TEXT UNIQUE NOT NULL, celular TEXT, estado_cuenta TEXT DEFAULT 'activo', saldo_total REAL DEFAULT 0, fecha_primer_compra DATETIME, fecha_ultimo_compra DATETIME, fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP, notas TEXT)");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Tabla cuentas creada\n", 
+                FILE_APPEND);
+        }
+        
+        // Verificar si existe la tabla confirmacion_pagos
+        $tablesConfirmacion = $conexion->query("SELECT name FROM sqlite_master WHERE type='table' AND name='confirmacion_pagos'")->fetchAll();
+        if (count($tablesConfirmacion) === 0) {
+            $conexion->exec("CREATE TABLE confirmacion_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, venta_id INTEGER, metodo_pago TEXT, comprobante_referencia TEXT, estado TEXT DEFAULT 'pendiente', fecha_solicitud DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_confirmacion DATETIME, usuario_confirmo TEXT, notas TEXT)");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Tabla confirmacion_pagos creada\n", 
+                FILE_APPEND);
+        }
+        
+        // Verificar si existe la tabla cortes_caja
+        $tablesCortes = $conexion->query("SELECT name FROM sqlite_master WHERE type='table' AND name='cortes_caja'")->fetchAll();
+        if (count($tablesCortes) === 0) {
+            $conexion->exec("CREATE TABLE cortes_caja (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_apertura DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_cierre DATETIME, usuario_apertura TEXT, usuario_cierre TEXT, saldo_inicial REAL DEFAULT 0, saldo_final REAL DEFAULT 0, ingresos_efectivo REAL DEFAULT 0, ingresos_tarjeta REAL DEFAULT 0, ingresos_transferencia REAL DEFAULT 0, egresos REAL DEFAULT 0, diferencia REAL DEFAULT 0, estado TEXT DEFAULT 'abierto', notas TEXT)");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Tabla cortes_caja creada\n", 
                 FILE_APPEND);
         }
         

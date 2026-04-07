@@ -19,7 +19,9 @@ function app_log($level, $msg) {
     $log_msg = "[$ts] [$level] $msg\n";
     
     $log_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'data';
-    @mkdir($log_dir, 0777, true);
+    if (!is_dir($log_dir)) {
+        @mkdir($log_dir, 0777, true);
+    }
     $log_file = $log_dir . DIRECTORY_SEPARATOR . 'app.log';
 
     @file_put_contents($log_file, $log_msg, FILE_APPEND);
@@ -60,21 +62,27 @@ function get_database_path() {
         $userprofile = getenv('USERPROFILE');
         if ($userprofile && is_dir($userprofile)) {
             $tg_dir = $userprofile . DIRECTORY_SEPARATOR . 'AppData' . DIRECTORY_SEPARATOR . 'Local' . DIRECTORY_SEPARATOR . 'TG_Gestion';
-            if (!is_dir($tg_dir)) @mkdir($tg_dir, 0777, true);
+            if (!is_dir($tg_dir)) {
+                @mkdir($tg_dir, 0777, true);
+            }
             return $tg_dir . DIRECTORY_SEPARATOR . 'database.sqlite';
         }
     }
     
     if ($driver === 'mysql') {
         $root_data = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'data';
-        if (!is_dir($root_data)) @mkdir($root_data, 0777, true);
+        if (!is_dir($root_data)) {
+            @mkdir($root_data, 0777, true);
+        }
         return $root_data . DIRECTORY_SEPARATOR . 'database.sqlite';
     }
     if (!$is_windows) {
         $home = getenv('HOME') ?: getenv('USERPROFILE');
         if ($home) {
             $tg_dir = $home . DIRECTORY_SEPARATOR . '.TG_Gestion';
-            if (!is_dir($tg_dir)) @mkdir($tg_dir, 0777, true);
+            if (!is_dir($tg_dir)) {
+                @mkdir($tg_dir, 0777, true);
+            }
             return $tg_dir . DIRECTORY_SEPARATOR . 'database.sqlite';
         }
     }
