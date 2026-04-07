@@ -49,6 +49,27 @@ try {
     $conexion->exec('PRAGMA journal_mode = WAL');
     $conexion->exec('PRAGMA synchronous = NORMAL');
     $conexion->exec('PRAGMA temp_store = MEMORY');
+
+    // Compatibilidad: asegurar esquema clave aun en BD antiguas
+    $conexion->exec("CREATE TABLE IF NOT EXISTS cuentas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre_cuenta TEXT UNIQUE NOT NULL, celular TEXT, estado_cuenta TEXT DEFAULT 'activo', saldo_total REAL DEFAULT 0, fecha_primer_compra DATETIME, fecha_ultimo_compra DATETIME, fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP, notas TEXT)");
+    $conexion->exec("CREATE TABLE IF NOT EXISTS cortes_caja (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_apertura DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_cierre DATETIME, usuario_apertura TEXT, usuario_cierre TEXT, saldo_inicial REAL DEFAULT 0, saldo_final REAL DEFAULT 0, ingresos_efectivo REAL DEFAULT 0, ingresos_tarjeta REAL DEFAULT 0, ingresos_transferencia REAL DEFAULT 0, egresos REAL DEFAULT 0, diferencia REAL DEFAULT 0, estado TEXT DEFAULT 'abierto', notas TEXT)");
+    $conexion->exec("CREATE TABLE IF NOT EXISTS confirmacion_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, venta_id INTEGER, metodo_pago TEXT, comprobante_referencia TEXT, estado TEXT DEFAULT 'pendiente', fecha_solicitud DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_confirmacion DATETIME, usuario_confirmo TEXT, notas TEXT)");
+
+    try {
+        $cols = $conexion->query("PRAGMA table_info(ventas)")->fetchAll(PDO::FETCH_ASSOC);
+        $names = array_map(function ($c) { return strtolower($c['name'] ?? ''); }, $cols);
+        if (!in_array('grupo_fiado', $names, true)) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN grupo_fiado TEXT");
+        }
+        if (!in_array('celular_fiado', $names, true)) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN celular_fiado TEXT");
+        }
+        if (!in_array('fiado_pagado', $names, true)) {
+            $conexion->exec("ALTER TABLE ventas ADD COLUMN fiado_pagado INTEGER DEFAULT 0");
+        }
+    } catch (Exception $schemaEx) {
+        @file_put_contents($log_dir . '/db_errors.log', date('Y-m-d H:i:s') . " - Schema upgrade warning: " . $schemaEx->getMessage() . "\n", FILE_APPEND);
+    }
     
 } catch (Exception $e) {
     error_log("[DB] SQLite Error: " . $e->getMessage());

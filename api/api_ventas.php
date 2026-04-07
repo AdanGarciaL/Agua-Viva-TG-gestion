@@ -2,14 +2,18 @@
 // api/api_ventas.php
 // VERSIÓN v4.1 - Reconexión automática
 
-session_start();
-include 'db.php';
-include 'error_handler.php';
-header('Content-Type: application/json');
-
-// Logging pero sin mostrar errores
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+include 'db.php';
+include 'error_handler.php';
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
 
 // Asegurar conexión de BD
 if (!asegurar_conexion_db()) {

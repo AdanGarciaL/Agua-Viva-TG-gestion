@@ -641,6 +641,17 @@ function appendCsrfToFormData(fd) {
     if (token) fd.append('csrf_token', token);
 }
 
+async function parseJsonSafe(response, contexto = 'API') {
+    const raw = await response.text();
+    const limpio = (raw || '').trim();
+    try {
+        return JSON.parse(limpio || '{}');
+    } catch (e) {
+        const preview = limpio.slice(0, 180).replace(/\s+/g, ' ');
+        throw new Error(`${contexto}: respuesta no válida (${response.status}). ${preview || 'sin contenido'}`);
+    }
+}
+
 function initNav() {
     const items = document.querySelectorAll('.nav-item');
     const tabs = document.querySelectorAll('.tab-content');
@@ -3693,8 +3704,8 @@ const cuentas = {
                 fetch('api/api_ventas.php?accion=listar_fiados', {credentials:'include'})
             ]);
 
-            const dataCuentas = await respCuentas.json();
-            const dataDeudas = await respDeudas.json();
+            const dataCuentas = await parseJsonSafe(respCuentas, 'Cuentas');
+            const dataDeudas = await parseJsonSafe(respDeudas, 'Deudas a cuenta');
             if (!respCuentas.ok || !dataCuentas.success) throw new Error(dataCuentas.message || 'Error al cargar cuentas');
             if (!respDeudas.ok || !dataDeudas.success) throw new Error(dataDeudas.message || 'Error al cargar deudas a cuenta');
 
@@ -3778,6 +3789,10 @@ const cuentas = {
             document.getElementById('cuentas-saldo-total').textContent = moneyFmt.format(saldoTotal);
         } catch (error) {
             console.error('Error cargando cuentas:', error);
+            const tbody = document.getElementById('cuerpo-tabla-cuentas');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#f44336;"><i class="fas fa-triangle-exclamation"></i> No se pudieron cargar las cuentas</td></tr>';
+            }
             Notificador.error('Error', error.message);
         }
     },
@@ -4236,7 +4251,7 @@ const cortes = {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
 
             const resp = await fetch('api/api_caja.php?accion=listar_cortes', {credentials:'include'});
-            const data = await resp.json();
+            const data = await parseJsonSafe(resp, 'Cortes');
             if (!resp.ok || !data.success) throw new Error(data.message || 'Error al cargar cortes');
 
             this.listData = data.cortes || [];
@@ -4267,6 +4282,10 @@ const cortes = {
             this.actualizarEstado();
         } catch (error) {
             console.error('Error cargando cortes:', error);
+            const tbody = document.getElementById('cuerpo-tabla-cortes');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#f44336;"><i class="fas fa-triangle-exclamation"></i> No se pudieron cargar los cortes</td></tr>';
+            }
             Notificador.error('Error', error.message);
         }
     },
@@ -4274,7 +4293,7 @@ const cortes = {
     async actualizarEstado() {
         try {
             const resp = await fetch('api/api_caja.php?accion=corte_actual');
-            const data = await resp.json();
+            const data = await parseJsonSafe(resp, 'Estado de corte');
 
             if (data.success && data.corte) {
                 const corte = data.corte;
@@ -4355,7 +4374,7 @@ const cortes = {
     async cerrarCorte() {
         try {
             const actualResp = await fetch('api/api_caja.php?accion=corte_actual', {credentials:'include'});
-            const actualData = await actualResp.json();
+            const actualData = await parseJsonSafe(actualResp, 'Corte actual');
             if (!actualData.success || !actualData.corte) {
                 return Notificador.warning('No hay corte abierto', 'Primero abre un corte');
             }
@@ -4412,7 +4431,7 @@ const cortes = {
                 }).toString()
             });
 
-            const data = await resp.json();
+            const data = await parseJsonSafe(resp, 'Detalle de corte');
             if (data.success) {
                 Notificador.success('✓ Corte cerrado', `Diferencia: ${moneyFmt.format(Number(data.resumen?.diferencia || 0))}`);
                 this.load();
@@ -4427,7 +4446,7 @@ const cortes = {
     async verDetalle(id) {
         try {
             const resp = await fetch(`api/api_caja.php?accion=detalle_corte&id_corte=${id}`);
-            const data = await resp.json();
+            const data = await parseJsonSafe(resp, 'Corte actual');
             if (!data.success) throw new Error(data.message || 'No se pudo obtener el detalle');
 
             const c = data.corte;

@@ -142,5 +142,3 @@ function get_database_path() {
 define('DB_PATH', get_database_path());
 define('APP_ROOT', dirname(__FILE__));
 define('API_ROOT', APP_ROOT . DIRECTORY_SEPARATOR . 'api');
-
-?>
