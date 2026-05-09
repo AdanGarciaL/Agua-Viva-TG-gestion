@@ -1,6 +1,6 @@
-# TG Gestión v10.7 - Sistema de Gestión Offline
+# TG Gestión v10.8 - Sistema de Gestión Offline
 
-![Version](https://img.shields.io/badge/Versión-10.7.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Versión-10.8.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/Licencia-Privada-red?style=flat-square)
 ![Status](https://img.shields.io/badge/Estado-Estable-brightgreen?style=flat-square)
 ![Windows](https://img.shields.io/badge/Windows-7%2B-0078D4?style=flat-square&logo=windows)
@@ -11,7 +11,7 @@
 
 <div align="center">
 
-### **TG Gestión V10.7 - Instalador Profesional**
+### **TG Gestión V10.8 - Instalador Profesional**
 
 [![Descargar Instalador](https://img.shields.io/badge/⬇️_DESCARGAR_INSTALADOR-180MB-brightgreen?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AdanGarciaL/Agua-Viva-TG-gestion/releases)
 
@@ -44,7 +44,7 @@
 
 ## 🎯 Descripción
 
-TG Gestión v10.7 es un sistema completo de gestión offline para negocios locales, desarrollado con PHP y SQLite. Esta versión mantiene la base 100% offline y suma mejoras de experiencia de usuario, permisos visuales por rol, limpieza de warnings y una interfaz más ligera para laptops.
+TG Gestión v10.8 es un sistema completo de gestión offline para negocios locales, desarrollado con PHP y SQLite. Esta versión consolida mejoras de experiencia de usuario, reportes ejecutivos más claros para junta, diagnósticos más confiables, una interfaz más profesional y una estructura de documentación más cuidada.
 
 ## ✨ Características Principales
 
@@ -61,7 +61,28 @@ TG Gestión v10.7 es un sistema completo de gestión offline para negocios local
 - ✅ **Logs más limpios** - Filtros inteligentes para errores y mensajes de sistema
 - ✅ **UI más ligera** - Tarjetas y alertas rediseñadas para mejor rendimiento en laptops
 
-## 📦 Nuevos Archivos del Sistema (v10)
+## 🖼️ Capturas de Pantalla
+
+Las siguientes capturas representan módulos reales de la aplicación y ayudan a documentar el comportamiento visual de la versión 10.8:
+
+| Captura | Archivo | Descripción |
+|--------|---------|-------------|
+| Inicio | [inicio de secion.png](assets/Capturas%20de%20Pantalla/inicio%20de%20secion.png) | Pantalla de acceso principal |
+| Ventas | [ventas.png](assets/Capturas%20de%20Pantalla/ventas.png) | Punto de venta en tema claro |
+| Ventas oscuro | [ventas dark.png](assets/Capturas%20de%20Pantalla/ventas%20dark.png) | Punto de venta en tema oscuro |
+| Inventario | [inventario.png](assets/Capturas%20de%20Pantalla/inventario.png) | Tabla de inventario con compra/venta |
+| Inventario oscuro | [inventario dark.png](assets/Capturas%20de%20Pantalla/inventario%20dark.png) | Inventario en tema oscuro |
+| Reportes | [reportes.png](assets/Capturas%20de%20Pantalla/reportes.png) | Centro de exportación |
+| Reporte inventario | [reporte exel inventario.png](assets/Capturas%20de%20Pantalla/reporte%20exel%20inventario.png) | Exportación Excel de inventario |
+| Reporte consolidado | [reporte exel consolidado.png](assets/Capturas%20de%20Pantalla/reporte%20exel%20consolidado.png) | Exportación consolidada ejecutiva |
+| Cuentas | [cuentas.png](assets/Capturas%20de%20Pantalla/cuentas.png) | Gestión de cuentas y saldos |
+| Cortes | [cortes.png](assets/Capturas%20de%20Pantalla/cortes.png) | Gestión de cortes de caja |
+| Séptimas | [septima.png](assets/Capturas%20de%20Pantalla/septima.png) | Registro de séptimas |
+| Configuración | [configuracion.png](assets/Capturas%20de%20Pantalla/configuracion.png) | Panel de superadmin |
+
+> Nota: los archivos de captura están almacenados en [assets/Capturas de Pantalla](assets/Capturas%20de%20Pantalla/).
+
+## 📦 Nuevos Archivos del Sistema (v10.8)
 
 ### Inicialización y Salud
 - `launcher.php` - Punto de entrada con inicialización blindada
@@ -89,7 +110,7 @@ TG Gestión v10.7 es un sistema completo de gestión offline para negocios local
 ### Opción 1: Instalador Automático (Recomendado)
 
 1. **Descargar** el instalador desde el botón arriba
-2. **Ejecutar** `TG-Gestion-Setup-10.0.0.exe`
+2. **Ejecutar** `TG-Gestion-Setup-10.8.0.exe`
 3. **Seleccionar** idioma (Español/English)
 4. **Aceptar** el Aviso de Privacidad
 5. **Completar** la instalación (automática)
@@ -213,9 +234,9 @@ Características:
 
 ---
 
-## 📝 Licencia
+### 📝 Licencia
 
-Privada - Solo para uso autorizado
+Este proyecto se distribuye bajo una licencia de uso autorizado para el entorno Agua Viva / TG Gestión. Consulta [LICENSE.txt](LICENSE.txt) para los términos completos.
 
 ---
 
@@ -230,7 +251,7 @@ Privada - Solo para uso autorizado
 
 ### **¿Listo para instalar?**
 
-[![Descargar Ahora](https://img.shields.io/badge/⬇️_DESCARGAR_V10.0.0-brightgreen?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AdanGarciaL/Agua-Viva-TG-gestion/releases/download/v10/TG-Gestion-Setup-10.0.0.exe)
+[![Descargar Ahora](https://img.shields.io/badge/⬇️_DESCARGAR_V10.8.0-brightgreen?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AdanGarciaL/Agua-Viva-TG-gestion/releases)
 
 *Windows 7 SP1+ (64-bit) - 180 MB - Incluye todo lo necesario*
 
@@ -280,7 +301,12 @@ icacls "C:\\Program Files\\TG Gestion Estables\\V10\\data" /grant Users:F
 
 ## 📝 Changelog
 
-### v10.7.0 (2026-04-07)
+### v10.8.0 (2026-05-09)
+
+- Consolidado ejecutivo ampliado por secciones
+- Diagnósticos más confiables y sin falsos negativos
+- Versionado visual actualizado a 10.8 en la interfaz
+- README con capturas reales del sistema
 - ✨ Centro de ayuda separado por rol
 - ✨ Cuentas habilitadas para vendedor
 - ✨ Rediseño ligero de alertas y tarjetas críticas
@@ -322,6 +348,6 @@ Uso interno - Todos los derechos reservados
 
 ---
 
-**Versión**: 10.7.0 Beta  
+**Versión**: 10.8.0  
 **Última actualización**: Abril 2026  
 **Estado**: ✅ En producción

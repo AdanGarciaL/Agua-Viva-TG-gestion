@@ -11,35 +11,43 @@ $response = [
     'is_php_desktop' => defined('IS_PHP_DESKTOP') ? IS_PHP_DESKTOP : false,
     'db_driver' => DB_DRIVER ?? 'unknown',
     'db_path' => DB_PATH ?? 'unknown',
-    'db_exists' => file_exists(DB_PATH ?? 'unknown'),
+    'db_exists' => (defined('DB_PATH') && is_string(DB_PATH) && DB_PATH !== '') ? file_exists(DB_PATH) : false,
     'db_connected' => false,
     'usuarios_exists' => false,
     'user_count' => 0,
     'has_admin' => false,
+    'admin_has_password' => false,
     'logs' => []
 ];
 
 try {
     require_once 'api/db.php';
     
-    if ($conexion) {
+    if ($conexion instanceof PDO) {
         $response['db_connected'] = true;
+        $response['db_exists'] = true; // Si conecta, la BD es accesible
         
         // Check usuarios table
-        $check = $conexion->query("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='usuarios'")->fetch();
-        $response['usuarios_exists'] = $check['cnt'] > 0;
+        $checkStmt = $conexion->query("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='usuarios'");
+        $check = $checkStmt ? $checkStmt->fetch(PDO::FETCH_ASSOC) : ['cnt' => 0];
+        $response['usuarios_exists'] = (int)($check['cnt'] ?? 0) > 0;
         
         if ($response['usuarios_exists']) {
-            $count = $conexion->query("SELECT COUNT(*) as cnt FROM usuarios")->fetch();
-            $response['user_count'] = $count['cnt'] ?? 0;
+            $countStmt = $conexion->query("SELECT COUNT(*) as cnt FROM usuarios");
+            $count = $countStmt ? $countStmt->fetch(PDO::FETCH_ASSOC) : ['cnt' => 0];
+            $response['user_count'] = (int)($count['cnt'] ?? 0);
             
-            $admin = $conexion->query("SELECT COUNT(*) as cnt FROM usuarios WHERE username='AdanGL'")->fetch();
-            $response['has_admin'] = $admin['cnt'] > 0;
+            $adminStmt = $conexion->prepare("SELECT username, password FROM usuarios WHERE LOWER(username)=LOWER(?) LIMIT 1");
+            $adminStmt->execute(['AdanGL']);
+            $admin = $adminStmt->fetch(PDO::FETCH_ASSOC);
+            $response['has_admin'] = !empty($admin);
+            $response['admin_has_password'] = !empty($admin['password']);
         }
     }
     
 } catch (Exception $e) {
     $response['db_connected'] = false;
+    $response['db_exists'] = false;
     $response['error'] = $e->getMessage();
 }
 

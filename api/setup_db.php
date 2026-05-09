@@ -59,13 +59,14 @@ try {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nombre VARCHAR(255) NOT NULL,
                 codigo_barras VARCHAR(255),
+                precio_compra DECIMAL(10,2) DEFAULT 0,
                 precio_venta DECIMAL(10,2) NOT NULL,
                 stock INT NOT NULL,
                 activo TINYINT DEFAULT 1
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock) VALUES (?, ?, ?, ?)");
-            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50]);
+            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_compra, precio_venta, stock) VALUES (?, ?, ?, ?, ?)");
+            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 60.00, 100.00, 50]);
 
             // 3. TABLA VENTAS
             $pdo->exec("CREATE TABLE IF NOT EXISTS ventas (
@@ -136,13 +137,14 @@ try {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
                 codigo_barras TEXT,
+                precio_compra REAL DEFAULT 0,
                 precio_venta REAL NOT NULL,
                 stock INTEGER NOT NULL,
                 activo INTEGER DEFAULT 1
             )");
 
-            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock) VALUES (?, ?, ?, ?)");
-            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 100.00, 50]);
+            $stmtProd = $pdo->prepare("INSERT INTO productos (nombre, codigo_barras, precio_compra, precio_venta, stock) VALUES (?, ?, ?, ?, ?)");
+            $stmtProd->execute(['Producto Ejemplo', '0000000000000', 60.00, 100.00, 50]);
 
             // 3. TABLA VENTAS
             $pdo->exec("CREATE TABLE IF NOT EXISTS ventas (

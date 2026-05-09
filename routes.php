@@ -96,7 +96,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️  Rutas Disponibles - TG Gestión v10 Beta</h1>
+        <h1>🗺️  Rutas Disponibles - TG Gestión v10.8</h1>
         
         <div class="note">
             💡 Usa estas rutas en el navegador escribiendo:

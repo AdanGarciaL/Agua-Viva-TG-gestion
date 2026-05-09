@@ -33,13 +33,15 @@ if (file_exists($config_path)) {
         'ok' => defined('DB_PATH')
     ];
     
-    // 5. DB File exists
+    // 5. DB File status (si no existe pero el directorio es escribible, se puede crear)
     $db_exists = file_exists(DB_PATH);
+    $db_dir = dirname(DB_PATH);
+    $db_dir_writable = is_dir($db_dir) ? is_writable($db_dir) : @mkdir($db_dir, 0777, true);
     $checks['db_file'] = [
         'name' => 'Database File',
         'exists' => $db_exists,
-        'writable' => $db_exists && is_writable(DB_PATH),
-        'ok' => $db_exists
+        'writable' => $db_exists ? is_writable(DB_PATH) : (bool)$db_dir_writable,
+        'ok' => $db_exists || (bool)$db_dir_writable
     ];
     
     // 6. Try connection

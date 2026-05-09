@@ -1,5 +1,5 @@
 <?php
-// index.php - v10 Beta - Tienda Regional
+// index.php - v10.8 - Tienda Regional
 require_once dirname(__FILE__) . DIRECTORY_SEPARATOR . 'config.php';
 
 // Configurar cookies de sesión seguras cuando sea posible
@@ -16,7 +16,7 @@ if (isset($_SESSION["usuario"])) { session_regenerate_id(true); header("Location
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Tienda Regional (TG Gestión v10 Beta)</title>
+    <title>Login - Tienda Regional (TG Gestión v10.8)</title>
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/vendor/sweetalert2/sweetalert2.min.css" rel="stylesheet">
 </head>

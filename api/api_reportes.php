@@ -3,10 +3,6 @@
 
 // CRÍTICO: NO output antes de headers
 error_reporting(0);
-ini_set('display_errors', 0);
-
-// Iniciar buffer ANTES de cualquier cosa
-ob_start();
 ob_implicit_flush(0);
 
 session_start();
@@ -134,10 +130,14 @@ if ($accion === 'exportar') {
             
             // Obtener ventas del último mes
             $stmt = $conexion->query("
-                SELECT v.id, v.fecha, v.total, v.tipo_pago, 
-                       v.vendedor as vendedor, 
-                       v.cantidad as items
-                FROM ventas v
+                  SELECT v.id, v.fecha, v.total, v.tipo_pago, 
+                      v.vendedor as vendedor, 
+                      v.cantidad as items,
+                      p.nombre as producto,
+                      COALESCE(p.precio_compra, 0) as precio_compra,
+                      COALESCE(p.precio_venta, 0) as precio_venta
+                  FROM ventas v
+                  LEFT JOIN productos p ON v.producto_id = p.id
                 WHERE v.fecha >= $last30
                 ORDER BY v.fecha DESC
             ");
@@ -166,7 +166,7 @@ if ($accion === 'exportar') {
             fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
             
             // Encabezados
-            fputcsv($output, ['ID', 'Fecha', 'Total', 'Tipo Pago', 'Vendedor', 'Productos']);
+            fputcsv($output, ['ID', 'Fecha', 'Total', 'Tipo Pago', 'Vendedor', 'Producto', 'Costo Unitario', 'Precio Venta Unitario', 'Utilidad Unit.', 'Cantidad']);
             
             // Datos
             foreach ($ventas as $venta) {
@@ -176,6 +176,10 @@ if ($accion === 'exportar') {
                     '$' . number_format($venta['total'], 2),
                     ucfirst($venta['tipo_pago']),
                     $venta['vendedor'] ?? 'N/A',
+                    $venta['producto'] ?? 'N/A',
+                    '$' . number_format(floatval($venta['precio_compra'] ?? 0), 2),
+                    '$' . number_format(floatval($venta['precio_venta'] ?? 0), 2),
+                    '$' . number_format(floatval($venta['precio_venta'] ?? 0) - floatval($venta['precio_compra'] ?? 0), 2),
                     $venta['items']
                 ]);
             }
@@ -210,7 +214,7 @@ if ($accion === 'exportar') {
             
             // Productos
             $stmt = $conexion->query("
-                SELECT id, nombre, tipo_producto, codigo_barras, precio_venta, stock, activo
+                SELECT id, nombre, tipo_producto, codigo_barras, precio_compra, precio_venta, stock, activo
                 FROM productos
                 WHERE activo = 1
                 ORDER BY nombre
@@ -304,6 +308,7 @@ $rowStyleLight = [
 $tabColors = [
     'Inventario' => 'FFC107',      // Amarillo
     'Resumen' => '3F51B5',         // Azul profundo
+    'Utilidad' => '2E7D32',        // Verde oscuro
     'Ventas' => 'F44336',          // Rojo
     'Registros' => '9C27B0',       // Púrpura
     'Septimas' => '00BCD4',        // Cian
@@ -329,11 +334,15 @@ function setTabColor($sheet, $colorHex) {
 
 try {
     $spreadsheet = new Spreadsheet();
+    $esUtilidad = ($reporte === 'utilidad_productos');
+    $necesitaInventario = in_array($reporte, ['inventario_hoy', 'consolidado'], true);
+    $necesitaUtilidad = in_array($reporte, ['utilidad_productos', 'consolidado'], true);
     
     // Nombre de archivo según tipo de reporte
     $filename = match($reporte) {
         'inventario_hoy' => 'Inventario_' . date('Y-m-d_His') . '.xlsx',
         'consolidado' => 'Consolidado_' . date('Y-m-d_His') . '.xlsx',
+        'utilidad_productos' => 'Utilidad_' . date('Y-m-d_His') . '.xlsx',
         'ventas_periodo' => 'Ventas_' . date('Y-m-d_His') . '.xlsx',
         default => 'Reporte_' . date('Y-m-d_His') . '.xlsx'
     };
@@ -341,7 +350,7 @@ try {
     // VALIDACIÓN PREVIA: Verificar que hay datos (v5.0)
     $hayDatos = false;
     
-    if ($reporte === 'inventario_hoy' || $reporte === 'consolidado') {
+    if ($necesitaInventario || $necesitaUtilidad) {
         $countProductos = $conexion->query("SELECT COUNT(*) as c FROM productos WHERE activo = 1")->fetch()['c'];
         if ($countProductos == 0) {
             header('Content-Type: application/json');
@@ -365,7 +374,7 @@ try {
     }
 
     // --- GENERACIÓN DE DATOS ---
-    if ($reporte === 'inventario_hoy' || $reporte === 'consolidado') {
+    if ($necesitaInventario) {
         
         // 1. INVENTARIO (ACTUALIZADO: separar Productos y Preparados)
         $sheet = $spreadsheet->getActiveSheet();
@@ -374,14 +383,15 @@ try {
         $sheet->setCellValue('B1', 'Nombre');
         $sheet->setCellValue('C1', 'Tipo');
         $sheet->setCellValue('D1', 'Código Barras');
-        $sheet->setCellValue('E1', 'Precio');
-        $sheet->setCellValue('F1', 'Stock');
-        $sheet->setCellValue('G1', 'Stock Mínimo');
+        $sheet->setCellValue('E1', 'Costo Compra');
+        $sheet->setCellValue('F1', 'Precio Venta');
+        $sheet->setCellValue('G1', 'Stock');
+        $sheet->setCellValue('H1', 'Stock Mínimo');
         
-        $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(25);
         
-        $stmt = $conexion->query("SELECT id, nombre, codigo_barras, precio_venta, stock, stock_minimo FROM productos WHERE activo = 1 AND (LOWER(tipo_producto) = 'producto' OR tipo_producto IS NULL) ORDER BY nombre ASC");
+        $stmt = $conexion->query("SELECT id, nombre, codigo_barras, precio_compra, precio_venta, stock, stock_minimo FROM productos WHERE activo = 1 AND (LOWER(tipo_producto) = 'producto' OR tipo_producto IS NULL) ORDER BY nombre ASC");
         $i = 2;
         $rowNum = 2;
         $totalProductos = 0;
@@ -392,9 +402,10 @@ try {
             $sheet->setCellValue('B'.$i, $r['nombre']);
             $sheet->setCellValue('C'.$i, 'Producto');
             $sheet->setCellValueExplicit('D'.$i, $r['codigo_barras'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheet->setCellValue('E'.$i, $r['precio_venta']);
-            $sheet->setCellValue('F'.$i, $r['stock']);
-            $sheet->setCellValue('G'.$i, $r['stock_minimo'] ?? 10);
+            $sheet->setCellValue('E'.$i, $r['precio_compra'] ?? 0);
+            $sheet->setCellValue('F'.$i, $r['precio_venta']);
+            $sheet->setCellValue('G'.$i, $r['stock']);
+            $sheet->setCellValue('H'.$i, $r['stock_minimo'] ?? 10);
             
             // Colorear en rojo si stock bajo
             $stockBajo = $r['stock'] <= ($r['stock_minimo'] ?? 10);
@@ -407,7 +418,7 @@ try {
             } else {
                 $style = ($rowNum % 2 == 0) ? $rowStyleDark : $rowStyleLight;
             }
-            $sheet->getStyle('A'.$i.':G'.$i)->applyFromArray($style);
+            $sheet->getStyle('A'.$i.':H'.$i)->applyFromArray($style);
 
             $totalProductos++;
             $totalStockProductos += (int)$r['stock'];
@@ -420,9 +431,9 @@ try {
         }
         $sheet->setCellValue('A'.$i, 'TOTAL INVENTARIO');
         $sheet->setCellValue('B'.$i, $totalProductos);
-        $sheet->setCellValue('F'.$i, $totalStockProductos);
-        $sheet->setCellValue('G'.$i, 'Stock bajo: ' . $stockBajoProductos);
-        $sheet->getStyle('A'.$i.':G'.$i)->applyFromArray([
+        $sheet->setCellValue('G'.$i, $totalStockProductos);
+        $sheet->setCellValue('H'.$i, 'Stock bajo: ' . $stockBajoProductos);
+        $sheet->getStyle('A'.$i.':H'.$i)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '5D4037']],
             'border' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
@@ -437,14 +448,15 @@ try {
         $sheet1b->setCellValue('B1', 'Nombre Preparado');
         $sheet1b->setCellValue('C1', 'Tipo');
         $sheet1b->setCellValue('D1', 'Código Barras');
-        $sheet1b->setCellValue('E1', 'Precio');
-        $sheet1b->setCellValue('F1', 'Stock');
-        $sheet1b->setCellValue('G1', 'Stock Mínimo');
+        $sheet1b->setCellValue('E1', 'Costo Compra');
+        $sheet1b->setCellValue('F1', 'Precio Venta');
+        $sheet1b->setCellValue('G1', 'Stock');
+        $sheet1b->setCellValue('H1', 'Stock Mínimo');
         
-        $sheet1b->getStyle('A1:G1')->applyFromArray($headerStyle);
+        $sheet1b->getStyle('A1:H1')->applyFromArray($headerStyle);
         $sheet1b->getRowDimension(1)->setRowHeight(25);
         
-        $stmtPrep = $conexion->query("SELECT id, nombre, codigo_barras, precio_venta, stock, stock_minimo FROM productos WHERE activo = 1 AND LOWER(tipo_producto) = 'preparado' ORDER BY nombre ASC");
+        $stmtPrep = $conexion->query("SELECT id, nombre, codigo_barras, precio_compra, precio_venta, stock, stock_minimo FROM productos WHERE activo = 1 AND LOWER(tipo_producto) = 'preparado' ORDER BY nombre ASC");
         $i = 2;
         $rowNum = 2;
         $totalPreparados = 0;
@@ -455,9 +467,10 @@ try {
             $sheet1b->setCellValue('B'.$i, $r['nombre']);
             $sheet1b->setCellValue('C'.$i, 'Preparado');
             $sheet1b->setCellValueExplicit('D'.$i, $r['codigo_barras'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $sheet1b->setCellValue('E'.$i, $r['precio_venta']);
-            $sheet1b->setCellValue('F'.$i, $r['stock']);
-            $sheet1b->setCellValue('G'.$i, $r['stock_minimo'] ?? 10);
+            $sheet1b->setCellValue('E'.$i, $r['precio_compra'] ?? 0);
+            $sheet1b->setCellValue('F'.$i, $r['precio_venta']);
+            $sheet1b->setCellValue('G'.$i, $r['stock']);
+            $sheet1b->setCellValue('H'.$i, $r['stock_minimo'] ?? 10);
             
             $stockBajo = $r['stock'] <= ($r['stock_minimo'] ?? 10);
             if ($stockBajo) {
@@ -469,7 +482,7 @@ try {
             } else {
                 $style = ($rowNum % 2 == 0) ? $rowStyleDark : $rowStyleLight;
             }
-            $sheet1b->getStyle('A'.$i.':G'.$i)->applyFromArray($style);
+            $sheet1b->getStyle('A'.$i.':H'.$i)->applyFromArray($style);
 
             $totalPreparados++;
             $totalStockPreparados += (int)$r['stock'];
@@ -482,9 +495,9 @@ try {
         }
         $sheet1b->setCellValue('A'.$i, 'TOTAL PREPARADOS');
         $sheet1b->setCellValue('B'.$i, $totalPreparados);
-        $sheet1b->setCellValue('F'.$i, $totalStockPreparados);
-        $sheet1b->setCellValue('G'.$i, 'Stock bajo: ' . $stockBajoPreparados);
-        $sheet1b->getStyle('A'.$i.':G'.$i)->applyFromArray([
+        $sheet1b->setCellValue('G'.$i, $totalStockPreparados);
+        $sheet1b->setCellValue('H'.$i, 'Stock bajo: ' . $stockBajoPreparados);
+        $sheet1b->getStyle('A'.$i.':H'.$i)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '6A1B9A']],
             'border' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
@@ -492,7 +505,87 @@ try {
         autoSizeColumns($sheet1b);
         setTabColor($sheet1b, '9C27B0');
 
-        if ($reporte === 'consolidado') {
+        if ($consolidado ?? false) {
+            // Intencionalmente cae al bloque consolidado siguiente.
+        }
+    }
+
+    if ($necesitaUtilidad) {
+        $sheetUtil = ($spreadsheet->getSheetCount() === 1 && !$necesitaInventario)
+            ? $spreadsheet->getActiveSheet()
+            : $spreadsheet->createSheet();
+        $sheetUtil->setTitle('Utilidad');
+        $sheetUtil->setCellValue('A1', 'ID');
+        $sheetUtil->setCellValue('B1', 'Nombre');
+        $sheetUtil->setCellValue('C1', 'Tipo');
+        $sheetUtil->setCellValue('D1', 'Costo Compra');
+        $sheetUtil->setCellValue('E1', 'Precio Venta');
+        $sheetUtil->setCellValue('F1', 'Margen Unitario');
+        $sheetUtil->setCellValue('G1', 'Stock');
+        $sheetUtil->setCellValue('H1', 'Inversión Stock');
+        $sheetUtil->setCellValue('I1', 'Ingreso Potencial');
+        $sheetUtil->setCellValue('J1', 'Utilidad Potencial');
+
+        $sheetUtil->getStyle('A1:J1')->applyFromArray($headerStyle);
+        $sheetUtil->getRowDimension(1)->setRowHeight(25);
+
+        $stmtUtil = $conexion->query("SELECT id, nombre, tipo_producto, precio_compra, precio_venta, stock FROM productos WHERE activo = 1 ORDER BY nombre ASC");
+        $i = 2;
+        $rowNum = 2;
+        $totalInversion = 0.0;
+        $totalIngresoPotencial = 0.0;
+        $totalUtilidadPotencial = 0.0;
+
+        while ($r = $stmtUtil->fetch(PDO::FETCH_ASSOC)) {
+            $compra = floatval($r['precio_compra'] ?? 0);
+            $venta = floatval($r['precio_venta'] ?? 0);
+            $stock = intval($r['stock'] ?? 0);
+            $margen = $venta - $compra;
+            $inversion = $compra * $stock;
+            $ingresoPotencial = $venta * $stock;
+            $utilidadPotencial = $margen * $stock;
+
+            $sheetUtil->setCellValue('A'.$i, $r['id']);
+            $sheetUtil->setCellValue('B'.$i, $r['nombre']);
+            $sheetUtil->setCellValue('C'.$i, ucfirst($r['tipo_producto'] ?? 'producto'));
+            $sheetUtil->setCellValue('D'.$i, $compra);
+            $sheetUtil->setCellValue('E'.$i, $venta);
+            $sheetUtil->setCellValue('F'.$i, $margen);
+            $sheetUtil->setCellValue('G'.$i, $stock);
+            $sheetUtil->setCellValue('H'.$i, $inversion);
+            $sheetUtil->setCellValue('I'.$i, $ingresoPotencial);
+            $sheetUtil->setCellValue('J'.$i, $utilidadPotencial);
+
+            $style = ($rowNum % 2 == 0) ? $rowStyleDark : $rowStyleLight;
+            $sheetUtil->getStyle('A'.$i.':J'.$i)->applyFromArray($style);
+
+            $totalInversion += $inversion;
+            $totalIngresoPotencial += $ingresoPotencial;
+            $totalUtilidadPotencial += $utilidadPotencial;
+
+            $i++;
+            $rowNum++;
+        }
+
+        $sheetUtil->setCellValue('A'.$i, 'TOTALES');
+        $sheetUtil->setCellValue('H'.$i, $totalInversion);
+        $sheetUtil->setCellValue('I'.$i, $totalIngresoPotencial);
+        $sheetUtil->setCellValue('J'.$i, $totalUtilidadPotencial);
+        $sheetUtil->getStyle('A'.$i.':J'.$i)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2E7D32']],
+            'border' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
+        ]);
+
+        autoSizeColumns($sheetUtil);
+        setTabColor($sheetUtil, $tabColors['Utilidad']);
+
+        if ($esUtilidad) {
+            $spreadsheet->setActiveSheetIndexByName('Utilidad');
+        }
+    }
+
+    if ($reporte === 'consolidado') {
             // RESUMEN GENERAL
             $summary = $spreadsheet->getActiveSheet();
             $summary->setTitle('Resumen');
@@ -528,7 +621,7 @@ try {
             $registrosResumen = $conexion->query("SELECT COUNT(*) AS total_registros, COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END),0) AS ingresos, COALESCE(SUM(CASE WHEN tipo='egreso' THEN monto ELSE 0 END),0) AS egresos, COALESCE(SUM(CASE WHEN tipo='arca_ingreso' THEN monto ELSE 0 END),0) AS arca_ingresos, COALESCE(SUM(CASE WHEN tipo IN ('arca_egreso','arca_gasto','arca_merma') THEN monto ELSE 0 END),0) AS arca_salidas FROM registros")->fetch(PDO::FETCH_ASSOC) ?: [];
             $septimasResumen = $conexion->query("SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN pagado=1 THEN 1 ELSE 0 END),0) AS pagadas, COALESCE(SUM(CASE WHEN pagado=0 THEN 1 ELSE 0 END),0) AS pendientes, COALESCE(SUM(monto),0) AS monto_total FROM septimas")->fetch(PDO::FETCH_ASSOC) ?: [];
             $arcasResumen = $conexion->query("SELECT COUNT(DISTINCT servicio) AS servicios, COALESCE(SUM(CASE WHEN tipo='arca_ingreso' THEN monto ELSE 0 END),0) AS ingresos, COALESCE(SUM(CASE WHEN tipo='arca_egreso' THEN monto ELSE 0 END),0) AS egresos, COALESCE(SUM(CASE WHEN tipo='arca_gasto' THEN monto ELSE 0 END),0) AS gastos, COALESCE(SUM(CASE WHEN tipo='arca_merma' THEN monto ELSE 0 END),0) AS mermas FROM registros WHERE categoria = 'arca'")->fetch(PDO::FETCH_ASSOC) ?: [];
-            $inventarioResumen = $conexion->query("SELECT COALESCE(SUM(CASE WHEN LOWER(tipo_producto)='producto' THEN 1 ELSE 0 END),0) AS productos, COALESCE(SUM(CASE WHEN LOWER(tipo_producto)='preparado' THEN 1 ELSE 0 END),0) AS preparados, COALESCE(SUM(CASE WHEN stock <= COALESCE(stock_minimo,10) THEN 1 ELSE 0 END),0) AS stock_bajo FROM productos WHERE activo = 1")->fetch(PDO::FETCH_ASSOC) ?: [];
+            $inventarioResumen = $conexion->query("SELECT COALESCE(SUM(CASE WHEN LOWER(tipo_producto)='producto' THEN 1 ELSE 0 END),0) AS productos, COALESCE(SUM(CASE WHEN LOWER(tipo_producto)='preparado' THEN 1 ELSE 0 END),0) AS preparados, COALESCE(SUM(CASE WHEN stock <= COALESCE(stock_minimo,10) THEN 1 ELSE 0 END),0) AS stock_bajo, COALESCE(SUM(COALESCE(precio_compra,0) * COALESCE(stock,0)),0) AS inversion_stock, COALESCE(SUM(COALESCE(precio_venta,0) * COALESCE(stock,0)),0) AS ingreso_potencial, COALESCE(SUM((COALESCE(precio_venta,0) - COALESCE(precio_compra,0)) * COALESCE(stock,0)),0) AS utilidad_potencial FROM productos WHERE activo = 1")->fetch(PDO::FETCH_ASSOC) ?: [];
 
             $summarySections = [
                 [
@@ -537,6 +630,9 @@ try {
                         ['label' => 'Productos activos', 'value' => $inventarioResumen['productos'] ?? 0],
                         ['label' => 'Preparados activos', 'value' => $inventarioResumen['preparados'] ?? 0],
                         ['label' => 'Artículos con stock bajo', 'value' => $inventarioResumen['stock_bajo'] ?? 0],
+                        ['label' => 'Inversión stock', 'value' => '$' . number_format((float)($inventarioResumen['inversion_stock'] ?? 0), 2)],
+                        ['label' => 'Ingreso potencial', 'value' => '$' . number_format((float)($inventarioResumen['ingreso_potencial'] ?? 0), 2)],
+                        ['label' => 'Utilidad potencial', 'value' => '$' . number_format((float)($inventarioResumen['utilidad_potencial'] ?? 0), 2)],
                     ]
                 ],
                 [
@@ -1140,7 +1236,6 @@ try {
             autoSizeColumns($sheet8);
             setTabColor($sheet8, 'FF9800');
         }
-    }
 
     // --- DESCARGAR ARCHIVO (RESPUESTA SIMPLE DE TEXTO) ---
     

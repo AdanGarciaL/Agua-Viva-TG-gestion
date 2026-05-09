@@ -27,7 +27,7 @@
 </head>
 <body>
 <div class="container">
-<h1>🔍 Estado de TG Gestión v10 Beta (Offline)</h1>
+<h1>🔍 Estado de TG Gestión v10.8 (Offline)</h1>
 
 <?php
 try {

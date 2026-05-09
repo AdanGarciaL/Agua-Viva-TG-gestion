@@ -147,7 +147,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 Inicio Rápido</h1>
-            <p>TG Gestión v10 Beta - Offline Edition</p>
+            <p>TG Gestión v10.8 - Offline Edition</p>
         </div>
         
         <div class="content">

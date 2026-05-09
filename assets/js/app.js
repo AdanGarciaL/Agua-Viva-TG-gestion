@@ -1574,6 +1574,7 @@ const inventario = {
             document.getElementById('producto-nombre').value = p.nombre;
             document.getElementById('producto-tipo').value = String(p.tipo_producto || 'producto').toLowerCase();
             document.getElementById('producto-codigo').value = p.codigo_barras || '';
+            document.getElementById('producto-precio-compra').value = p.precio_compra || 0;
             document.getElementById('producto-precio').value = p.precio_venta || 0;
             document.getElementById('producto-stock').value = p.stock || 0;
             
@@ -1640,6 +1641,11 @@ const inventario = {
                         
                         // Formatear valores según el campo
                         if (campo === 'precio_venta' || campo === 'precio') {
+                            valorAnterior = moneyFmt.format(parseFloat(valorAnterior || 0));
+                            valorNuevo = moneyFmt.format(parseFloat(valorNuevo || 0));
+                        }
+
+                        if (campo === 'precio_compra') {
                             valorAnterior = moneyFmt.format(parseFloat(valorAnterior || 0));
                             valorNuevo = moneyFmt.format(parseFloat(valorNuevo || 0));
                         }
@@ -1718,6 +1724,86 @@ const inventario = {
         }
     },
 
+    reabastecer: async (id) => {
+        const producto = inventario.listData.find(p => p.id == id);
+        if (!producto) {
+            Notificador.error('Error', 'Producto no encontrado');
+            return;
+        }
+
+        // Excluir Preparados del reabastecer
+        if (String(producto.tipo_producto || '').toLowerCase() === 'preparado') {
+            Notificador.error('No permitido', 'Los productos Preparados no se pueden reabastecer como productos simples. Son composiciones de múltiples ingredientes. Actualiza el costo de compra directamente en la edición del producto.');
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: `Reabastecer ${producto.nombre}`,
+            html: `
+                <div style="display:grid; gap:12px; text-align:left;">
+                    <div style="font-size:0.9rem; opacity:0.85;">Stock actual: <strong>${producto.stock || 0}</strong></div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-weight:600; color:var(--color-texto);">Cantidad comprada</label>
+                        <input id="reabastecer-cantidad" type="number" min="1" step="1" class="swal2-input" style="margin:0; width:100%;" placeholder="Ej: 50">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-weight:600; color:var(--color-texto);">Costo de compra unitario</label>
+                        <input id="reabastecer-precio-compra" type="number" min="0" step="0.01" class="swal2-input" style="margin:0; width:100%;" placeholder="Ej: $10.50" value="${Number(producto.precio_compra || 0)}">
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:6px; font-weight:600; color:var(--color-texto);">Precio de venta unitario</label>
+                        <input id="reabastecer-precio-venta" type="number" min="0" step="0.01" class="swal2-input" style="margin:0; width:100%;" placeholder="Ej: $20.00" value="${Number(producto.precio_venta || 0)}">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Reabastecer',
+            cancelButtonText: 'Cancelar',
+            focusConfirm: false,
+            preConfirm: () => {
+                const cantidad = parseInt(document.getElementById('reabastecer-cantidad').value || '0', 10);
+                const precioCompra = parseFloat(document.getElementById('reabastecer-precio-compra').value || '0');
+                const precioVenta = parseFloat(document.getElementById('reabastecer-precio-venta').value || '0');
+                if (!cantidad || cantidad <= 0) {
+                    Swal.showValidationMessage('Ingresa una cantidad válida');
+                    return false;
+                }
+                return { cantidad, precioCompra, precioVenta };
+            }
+        });
+
+        if (!result.isConfirmed || !result.value) return;
+
+        try {
+            const params = new URLSearchParams({
+                accion: 'reabastecer',
+                id: String(id),
+                cantidad: String(result.value.cantidad),
+                precio_compra: String(result.value.precioCompra),
+                precio_venta: String(result.value.precioVenta)
+            });
+            const token = sessionStorage.getItem('csrf_token');
+            if (token) params.append('csrf_token', token);
+
+            const res = await fetch('api/api_inventario.php', {
+                method: 'POST',
+                credentials: 'include',
+                body: params
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                Notificador.success('✅ Reabastecido', `Nuevo stock: ${data.producto?.stock ?? producto.stock}`);
+                inventario.load();
+            } else {
+                Notificador.error('Error', data.message || 'No se pudo reabastecer el producto');
+            }
+        } catch (error) {
+            console.error('[Reabastecer] Error:', error);
+            Notificador.error('Error', 'No se pudo reabastecer: ' + error.message);
+        }
+    },
+
     renderTabla: (productos) => {
         const t = document.getElementById('cuerpo-tabla-inventario');
         if (!t) return;
@@ -1733,6 +1819,8 @@ const inventario = {
                     : (idx % 2 === 0 ? 'inventario-row-alt' : '');
                 const codigoClass = isDark ? 'inventario-codigo-dark' : 'inventario-codigo-light';
                 const precioClass = isStockBajo ? 'inventario-precio-stock-bajo' : 'inventario-precio-normal';
+                const compra = Number(p.precio_compra || 0);
+                const venta = Number(p.precio_venta || 0);
 
                 const stockDisplay = `<div style="display:flex; align-items:center; gap:8px; justify-content:center;">
                     ${p.stock}
@@ -1743,6 +1831,7 @@ const inventario = {
                 if (document.body.getAttribute('data-role') !== 'vendedor') {
                     btnAcciones = `<div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;">
                         <button class="btn-icon btn-edit" onclick="inventario.preEdit(${p.id})" title="Editar"><i class="fas fa-pen"></i></button>
+                        <button class="btn-icon btn-success" onclick="inventario.reabastecer(${p.id})" title="Reabastecer" style="background:#2e7d32;"><i class="fas fa-box-open"></i></button>
                         <button class="btn-icon btn-info" onclick="inventario.verHistorial(${p.id}, '${String(p.nombre || '').replace(/'/g, "\\'")}')" title="Historial" style="background:#2196f3;"><i class="fas fa-history"></i></button>
                         <button class="btn-icon btn-delete" onclick="inventario.del(${p.id})" title="Eliminar"><i class="fas fa-trash"></i></button>
                     </div>`;
@@ -1753,7 +1842,10 @@ const inventario = {
                     <td style="font-weight:500;">${p.nombre}</td>
                     <td style="text-align:center;"><span style="background:${tipoProducto === 'Preparado' ? '#ff9800' : '#4caf50'}; color:white; padding:4px 12px; border-radius:12px; font-size:0.8rem; font-weight:bold;">${tipoProducto}</span></td>
                     <td class="${codigoClass}" style="font-family:monospace;">${p.codigo_barras || '-'}</td>
-                    <td class="${precioClass}" style="text-align:right; font-weight:500;">${moneyFmt.format(p.precio_venta || 0)}</td>
+                    <td class="${precioClass}" style="text-align:left; font-weight:500; line-height:1.35;">
+                        <div><strong>Compra:</strong> ${moneyFmt.format(compra)}</div>
+                        <div><strong>Venta:</strong> ${moneyFmt.format(venta)}</div>
+                    </td>
                     <td style="text-align:center;">${stockDisplay}</td>
                     <td style="text-align:center;">${btnAcciones}</td>
                 </tr>`;
@@ -4682,20 +4774,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(cargarSalud, 1000);
     }
     
-    // Descargar reportes - VERSIÓN SIMPLE QUE FUNCIONA
+    // Descargar reportes - VERSIÓN MEJORADA v6.0 CON LOGO
     const descargarReporte = async (tipoReporte) => {
         try {
             Swal.fire({
                 title: '⏳ Generando reporte...',
-                html: 'Creando archivo Excel...',
+                html: 'Creando archivo Excel con logo y formato profesional...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
                 }
             });
             
-            // Usar API principal de reportes
-            const response = await fetch(`api/api_reportes.php?reporte=${tipoReporte}`);
+            // Usar API mejorada para reportes profesionales
+            const apiEndpoint = (tipoReporte === 'consolidado') ? 'api/api_reportes_mejorado.php' : 'api/api_reportes.php';
+            const response = await fetch(`${apiEndpoint}?reporte=${tipoReporte}`);
             const textoRespuesta = await response.text();
             
             console.log('[Reporte] Respuesta:', textoRespuesta);
@@ -4773,6 +4866,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const b1=document.getElementById('btn-reporte-inventario'); 
     if(b1) b1.onclick=()=>descargarReporte('inventario_hoy');
+
+    const b1b=document.getElementById('btn-reporte-utilidad'); 
+    if(b1b) b1b.onclick=()=>descargarReporte('utilidad_productos');
     
     const b2=document.getElementById('btn-reporte-consolidado'); 
     if(b2) b2.onclick=()=>descargarReporte('consolidado');

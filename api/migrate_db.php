@@ -32,6 +32,22 @@ try {
             echo "<p style='color:orange;'>⚠️ stock_minimo: " . $e->getMessage() . "</p>";
         }
     }
+
+    // 1.1 Agregar precio_compra a productos
+    try {
+        if ($isMysql) {
+            $conexion->exec("ALTER TABLE productos ADD COLUMN precio_compra DECIMAL(10,2) DEFAULT 0");
+        } else {
+            $conexion->exec("ALTER TABLE productos ADD COLUMN precio_compra REAL DEFAULT 0");
+        }
+        echo "<p>✅ Campo <code>precio_compra</code> agregado a productos</p>";
+    } catch (Exception $e) {
+        if (strpos($e->getMessage(), 'Duplicate column') !== false || strpos($e->getMessage(), 'duplicate column') !== false) {
+            echo "<p>⚠️ Campo <code>precio_compra</code> ya existe</p>";
+        } else {
+            echo "<p style='color:orange;'>⚠️ precio_compra: " . $e->getMessage() . "</p>";
+        }
+    }
     
     // 2. Agregar grupo a ventas (para fiados con grupo)
     try {

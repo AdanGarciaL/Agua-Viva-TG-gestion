@@ -122,7 +122,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 Configuración Inicial</h1>
-            <p>TG Gestión v10 Beta - Primera Instalación</p>
+            <p>TG Gestión v10.8 - Primera Instalación</p>
         </div>
         
         <div class="content">

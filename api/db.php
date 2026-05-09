@@ -102,10 +102,10 @@ if ($conexion && $inicializar) {
         @file_put_contents($log_dir . '/db_errors.log', 
             date('Y-m-d H:i:s') . " - Usuario AdanGL creado/verificado exitosamente\n", FILE_APPEND);
 
-        $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, tipo_producto TEXT DEFAULT 'producto', activo INTEGER DEFAULT 1)");
+        $conexion->exec("CREATE TABLE IF NOT EXISTS productos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, codigo_barras TEXT, precio_compra REAL DEFAULT 0, precio_venta REAL, stock INTEGER, stock_minimo INTEGER DEFAULT 10, tipo_producto TEXT DEFAULT 'producto', activo INTEGER DEFAULT 1)");
         
-        $stmt = $conexion->prepare("INSERT INTO productos (nombre, precio_venta, stock) VALUES (?, ?, ?)");
-        $stmt->execute(['Producto Ejemplo', 100, 50]);
+        $stmt = $conexion->prepare("INSERT INTO productos (nombre, precio_compra, precio_venta, stock) VALUES (?, ?, ?, ?)");
+        $stmt->execute(['Producto Ejemplo', 60, 100, 50]);
 
         $conexion->exec("CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY AUTOINCREMENT, producto_id INTEGER, cantidad INTEGER, total REAL, fecha DATETIME DEFAULT CURRENT_TIMESTAMP, vendedor TEXT, tipo_pago TEXT, nombre_fiado TEXT, grupo_fiado TEXT, fiado_pagado INTEGER DEFAULT 0)");
         
@@ -184,11 +184,20 @@ if ($conexion) {
             if ($col['name'] === 'metodo_pago') $hasMetodoPago = true;
         }
         
-        // También verificar columna tipo_producto en tabla productos
+        // También verificar columnas faltantes en tabla productos
         $testProd = $conexion->query("PRAGMA table_info(productos)");
         $columnsProd = $testProd->fetchAll(PDO::FETCH_ASSOC);
+        $hasPrecioCompra = false;
         foreach ($columnsProd as $col) {
+            if ($col['name'] === 'precio_compra') $hasPrecioCompra = true;
             if ($col['name'] === 'tipo_producto') $hasTipoProducto = true;
+        }
+
+        if (!$hasPrecioCompra) {
+            $conexion->exec("ALTER TABLE productos ADD COLUMN precio_compra REAL DEFAULT 0");
+            @file_put_contents($log_dir . '/db_errors.log', 
+                date('Y-m-d H:i:s') . " - Migración: Columna precio_compra agregada a tabla productos\n", 
+                FILE_APPEND);
         }
         
         if (!$hasCelularFiado) {
@@ -288,7 +297,7 @@ function log_error_db($mensaje) {
     @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'db_errors.log', $txt, FILE_APPEND);
     
     try {
-        if (isset($conexion) && $conexion) {
+        if ($conexion instanceof PDO) {
             $stmt = $conexion->prepare("INSERT INTO log_errores (fecha, tipo, mensaje, detalles, url) VALUES (datetime('now'), ?, ?, ?, ?)");
             if ($stmt) {
                 $stmt->execute(['db', substr($mensaje, 0, 255), substr($mensaje, 0, 1000), '']);
@@ -305,6 +314,10 @@ function registrar_auditoria($tabla, $registro_id, $campo, $valor_anterior, $val
     global $conexion;
     
     try {
+        if (!($conexion instanceof PDO)) {
+            return false;
+        }
+
         $usuario = $_SESSION['usuario'] ?? 'desconocido';
         
         $stmt = $conexion->prepare("

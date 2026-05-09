@@ -1,4 +1,4 @@
-# TG Gestión v10 - Sistema de Gestión Offline
+# TG Gestión v10.8 - Sistema de Gestión Offline
 
 ## 🎯 Descripción
 

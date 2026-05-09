@@ -104,6 +104,10 @@ try {
     
     $reporte = $_GET['reporte'] ?? 'inventario_hoy';
     logDebug("Tipo reporte: $reporte");
+
+    if (!($conexion instanceof PDO)) {
+        throw new Exception('Conexión a base de datos no disponible');
+    }
     
     // Obtener datos de productos (la tabla correcta es "productos", no "inventario")
     $stmt = $conexion->query("SELECT * FROM productos WHERE activo = 1 ORDER BY nombre");
@@ -113,6 +117,10 @@ try {
     if (empty($productos)) {
         throw new Exception('No hay productos en el inventario');
     }
+
+    if (!($conexion instanceof PDO)) {
+        throw new Exception('Conexión a base de datos no disponible');
+    }
     
     // Crear Excel
     $spreadsheet = new Spreadsheet();
@@ -120,7 +128,7 @@ try {
     $sheet->setTitle('Inventario');
     
     // Encabezados
-    $headers = ['Nombre', 'Código', 'Stock', 'Precio Venta', 'Stock Mínimo'];
+    $headers = ['Nombre', 'Código', 'Stock', 'Costo Compra', 'Precio Venta', 'Stock Mínimo'];
     $col = 'A';
     foreach ($headers as $header) {
         $sheet->setCellValue($col . '1', $header);
@@ -138,13 +146,14 @@ try {
         $sheet->setCellValue('A' . $row, $p['nombre'] ?? '');
         $sheet->setCellValue('B' . $row, $p['codigo_barras'] ?? '');
         $sheet->setCellValue('C' . $row, $p['stock'] ?? 0);
-        $sheet->setCellValue('D' . $row, $p['precio_venta'] ?? 0);
-        $sheet->setCellValue('E' . $row, $p['stock_minimo'] ?? 0);
+        $sheet->setCellValue('D' . $row, $p['precio_compra'] ?? 0);
+        $sheet->setCellValue('E' . $row, $p['precio_venta'] ?? 0);
+        $sheet->setCellValue('F' . $row, $p['stock_minimo'] ?? 0);
         $row++;
     }
     
     // Autoajustar columnas
-    foreach (range('A', 'E') as $col) {
+    foreach (range('A', 'F') as $col) {
         $sheet->getColumnDimension($col)->setAutoSize(true);
     }
     

@@ -133,7 +133,7 @@
             </div>
             
             <div id="test-5" class="test-item pending">
-                <span>5. Verificar contraseña</span>
+                <span>5. Verificar contraseña del usuario</span>
                 <span class="status pending"><span class="spinner"></span></span>
             </div>
             
@@ -216,8 +216,9 @@
                 const r2 = await fetch('diagnostic-api.php?t=' + Date.now());
                 const d2 = await r2.json();
                 
-                addLog('Test 2: BD existe = ' + d2.db_exists);
-                updateTest('test-2', d2.db_exists, d2.db_exists ? 'Archivo BD encontrado' : 'BD no existe');
+                const dbOk = !!d2.db_connected;
+                addLog('Test 2: BD conectada = ' + dbOk);
+                updateTest('test-2', dbOk, dbOk ? 'Conexión a BD establecida' : 'Sin conexión a BD');
                 
                 addLog('Test 3: Tabla usuarios = ' + d2.usuarios_exists);
                 updateTest('test-3', d2.usuarios_exists, d2.usuarios_exists ? 'Tabla creada' : 'Tabla no existe');
@@ -225,9 +226,8 @@
                 addLog('Test 4: Usuario AdanGL = ' + d2.has_admin);
                 updateTest('test-4', d2.has_admin, d2.has_admin ? 'Usuario existe' : 'Usuario no encontrado');
                 
-                addLog('Test 5: Total usuarios = ' + d2.user_count);
-                const hasUsers = d2.user_count > 0;
-                updateTest('test-5', hasUsers, hasUsers ? d2.user_count + ' usuario(s) en BD' : 'Sin usuarios');
+                addLog('Test 5: Password hash usuario = ' + d2.admin_has_password);
+                updateTest('test-5', !!d2.admin_has_password, d2.admin_has_password ? 'Contraseña configurada correctamente' : 'Usuario sin contraseña');
                 
             } catch (e) {
                 updateTest('test-2', false, 'Error en diagnóstico');

@@ -4,7 +4,7 @@ $is_php_desktop = true;
 
 $config = [
     'app_name' => 'Tienda Regional',
-    'app_version' => 'v10 Beta (Offline)',
+    'app_version' => 'v10.8 (Offline)',
     'debug' => false,
     'phpdesktop' => true,
     'db' => [

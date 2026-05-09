@@ -1,5 +1,5 @@
 <?php
-// api/api_migracion.php - Migración de datos entre BDs (v10 Beta)
+// api/api_migracion.php - Migración de datos entre BDs (v10.8)
 // Permite cargar datos de una BD antigua a la nueva
 
 session_start();

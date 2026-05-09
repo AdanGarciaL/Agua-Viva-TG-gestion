@@ -164,6 +164,7 @@ try {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
         codigo_barras TEXT,
+        precio_compra REAL DEFAULT 0,
         precio_venta REAL NOT NULL,
         stock INTEGER NOT NULL,
         stock_minimo INTEGER DEFAULT 10,
@@ -233,8 +234,8 @@ try {
     $log[] = "[OK] Todas las tablas creadas exitosamente";
     
     // 11. Insertar producto de ejemplo
-    $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock) VALUES (?, ?, ?, ?)");
-    $stmt->execute(['Producto Ejemplo', '0000000000000', 100.00, 50]);
+    $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_compra, precio_venta, stock) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute(['Producto Ejemplo', '0000000000000', 60.00, 100.00, 50]);
     $log[] = "[OK] Producto de ejemplo insertado";
     
     // 12. Contar tablas

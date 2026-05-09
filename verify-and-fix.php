@@ -75,6 +75,7 @@ try {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT,
             codigo_barras TEXT,
+            precio_compra REAL DEFAULT 0,
             precio_venta REAL,
             stock INTEGER,
             stock_minimo INTEGER DEFAULT 10,

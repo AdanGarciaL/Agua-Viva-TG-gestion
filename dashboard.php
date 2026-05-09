@@ -20,7 +20,7 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Tienda Regional (TG Gestión v10 Beta)</title>
+    <title>Dashboard - Tienda Regional (TG Gestión v10.8)</title>
     <link href="assets/css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
     <link href="assets/vendor/sweetalert2/sweetalert2.min.css" rel="stylesheet">
@@ -33,7 +33,7 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
             <img src="assets/img/logo-agua-viva.png" alt="Logo" class="logo-nav" onerror="this.style.display='none'">
             <div style="display:flex; flex-direction:column; line-height:1.1; margin-left: 10px;">
                 <span class="brand-name">Tienda Regional</span>
-                <span style="font-size:0.7rem; opacity:0.8; font-weight:400;">v10 Beta Offline Edition</span>
+                <span style="font-size:0.7rem; opacity:0.8; font-weight:400;">v10.8 Offline Edition</span>
             </div>
         </div>
 
@@ -273,7 +273,8 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
                                 <option value="preparado">Preparado</option>
                             </select></div>
                             <div class="input-group"><label>Código:</label><input type="text" id="producto-codigo" name="codigo"></div>
-                            <div class="input-group"><label>Precio:</label><input type="number" id="producto-precio" name="precio" step="0.50" required></div>
+                            <div class="input-group"><label>Costo compra:</label><input type="number" id="producto-precio-compra" name="precio_compra" step="0.01" min="0" value="0"></div>
+                            <div class="input-group"><label>Precio venta:</label><input type="number" id="producto-precio" name="precio" step="0.50" required></div>
                             <div class="input-group"><label>Stock:</label><input type="number" id="producto-stock" name="stock" required></div>
                         </div>
                         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
@@ -286,7 +287,7 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
 
             <div class="table-wrap">
                 <table id="tabla-inventario">
-                    <thead><tr><th>Nombre</th><th>Tipo</th><th>Código</th><th>Precio</th><th>Stock</th><th class="admin-only">Opciones</th></tr></thead>
+                    <thead><tr><th>Nombre</th><th>Tipo</th><th>Código</th><th>Compra / Venta</th><th>Stock</th><th class="admin-only">Opciones</th></tr></thead>
                     <tbody id="cuerpo-tabla-inventario"></tbody>
                 </table>
             </div>
@@ -459,7 +460,7 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
                     <div class="reportes-kpis">
                         <div class="reportes-kpi">
                             <small>Formatos</small>
-                            <strong>2 Excel</strong>
+                            <strong>3 Excel</strong>
                         </div>
                         <div class="reportes-kpi">
                             <small>Modo</small>
@@ -479,9 +480,20 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
                             <span class="reporte-pill">OPERATIVO</span>
                             <h4><i class="fas fa-boxes"></i> Inventario Actual</h4>
                         </div>
-                        <p>Lista de productos, stock, tipo y precios. Ideal para control diario de tienda.</p>
+                        <p>Lista de productos, stock, tipo y precios de compra/venta. Ideal para control diario de tienda.</p>
                         <button class="btn btn-success reporte-btn" id="btn-reporte-inventario">
                             <i class="fas fa-file-excel"></i> Descargar Excel Inventario
+                        </button>
+                    </article>
+
+                    <article class="reporte-card reporte-card-utilidad">
+                        <div class="reporte-card-head">
+                            <span class="reporte-pill">FINANCIERO</span>
+                            <h4><i class="fas fa-coins"></i> Utilidad por Producto</h4>
+                        </div>
+                        <p>Calcula costo de compra, precio de venta, margen unitario y utilidad potencial por stock.</p>
+                        <button class="btn btn-success reporte-btn" id="btn-reporte-utilidad">
+                            <i class="fas fa-file-excel"></i> Descargar Excel Utilidad
                         </button>
                     </article>
 
@@ -781,7 +793,7 @@ $es_admin_help = in_array($_SESSION['role'], ['admin', 'superadmin'], true);
         </div>
 
         <div class="tab-content superadmin-only" id="errores">
-            &copy; <?php echo date("Y"); ?> <strong>Agua Viva</strong>. Todos los derechos reservados. v10 Beta
+            &copy; <?php echo date("Y"); ?> <strong>Agua Viva</strong>. Todos los derechos reservados. v10.8
         </footer>
     </main>
 

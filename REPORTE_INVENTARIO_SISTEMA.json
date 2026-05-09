@@ -1,0 +1,1301 @@
+{
+  "titulo": "REPORTE EXHAUSTIVO - INVENTARIO DE SISTEMA TG GESTIÓN ESTABLOS V10.7",
+  "fecha_generacion": "2024-01-18",
+  "estructura_base_datos": {
+    "driver": "SQLite (offline)",
+    "pragma_settings": {
+      "foreign_keys": "ON",
+      "journal_mode": "WAL",
+      "synchronous": "NORMAL",
+      "temp_store": "MEMORY"
+    },
+    "tablas_completas": {
+      "usuarios": {
+        "descripcion": "Gestión de acceso y autenticación",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true,
+            "descripcion": "Identificador único"
+          },
+          {
+            "nombre": "username",
+            "tipo": "TEXT UNIQUE",
+            "required": true,
+            "descripcion": "Nombre de usuario"
+          },
+          {
+            "nombre": "password",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Contraseña hasheada (password_hash)"
+          },
+          {
+            "nombre": "role",
+            "tipo": "TEXT",
+            "required": true,
+            "valores": ["superadmin", "admin", "vendedor"],
+            "descripcion": "Rol de acceso"
+          }
+        ],
+        "datos_iniciales": {
+          "usuario_default": "AdanGL",
+          "contraseña_default": "Agl252002",
+          "rol_default": "superadmin"
+        }
+      },
+      "productos": {
+        "descripcion": "Inventario de productos y preparados",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "nombre",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Nombre del producto"
+          },
+          {
+            "nombre": "codigo_barras",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Código de barras único"
+          },
+          {
+            "nombre": "precio_compra",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Costo unitario de compra"
+          },
+          {
+            "nombre": "precio_venta",
+            "tipo": "REAL",
+            "required": true,
+            "descripcion": "Precio de venta al público"
+          },
+          {
+            "nombre": "stock",
+            "tipo": "INTEGER",
+            "required": true,
+            "descripcion": "Cantidad en inventario"
+          },
+          {
+            "nombre": "stock_minimo",
+            "tipo": "INTEGER DEFAULT 10",
+            "required": false,
+            "descripcion": "Nivel mínimo de reorden"
+          },
+          {
+            "nombre": "tipo_producto",
+            "tipo": "TEXT DEFAULT 'producto'",
+            "required": false,
+            "valores": ["producto", "preparado"],
+            "descripcion": "Clasificación: producto base o preparado (tortas, etc)"
+          },
+          {
+            "nombre": "activo",
+            "tipo": "INTEGER DEFAULT 1",
+            "required": false,
+            "valores": [0, 1],
+            "descripcion": "Soft delete: 1=activo, 0=inactivo"
+          }
+        ],
+        "ejemplo_dato": "Producto Ejemplo: precio_compra=60, precio_venta=100, stock=50"
+      },
+      "ventas": {
+        "descripcion": "Registro de todas las transacciones de venta",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "producto_id",
+            "tipo": "INTEGER",
+            "required": true,
+            "foreign_key": "productos.id"
+          },
+          {
+            "nombre": "cantidad",
+            "tipo": "INTEGER",
+            "required": true,
+            "descripcion": "Unidades vendidas"
+          },
+          {
+            "nombre": "total",
+            "tipo": "REAL",
+            "required": true,
+            "descripcion": "Monto total de la venta"
+          },
+          {
+            "nombre": "fecha",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "vendedor",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Nombre del vendedor"
+          },
+          {
+            "nombre": "tipo_pago",
+            "tipo": "TEXT",
+            "required": true,
+            "valores": ["efectivo", "fiado", "pagado", "tarjeta", "transferencia"],
+            "descripcion": "Forma de pago"
+          },
+          {
+            "nombre": "nombre_fiado",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Nombre del deudor (si tipo_pago='fiado')"
+          },
+          {
+            "nombre": "grupo_fiado",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Grupo/región del deudor"
+          },
+          {
+            "nombre": "celular_fiado",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Teléfono de contacto del deudor"
+          },
+          {
+            "nombre": "fiado_pagado",
+            "tipo": "INTEGER DEFAULT 0",
+            "required": false,
+            "valores": [0, 1],
+            "descripcion": "Flag: 0=pendiente, 1=pagado"
+          },
+          {
+            "nombre": "estado_cuenta",
+            "tipo": "TEXT DEFAULT 'pendiente'",
+            "required": false,
+            "valores": ["pendiente", "pagado"],
+            "descripcion": "Estado del registro de cuenta"
+          },
+          {
+            "nombre": "metodo_pago",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Método de pago específico (efectivo, tarjeta, transferencia)"
+          }
+        ],
+        "relaciones": [
+          "BELONGS TO productos (producto_id)",
+          "LINKED TO cuentas (nombre_fiado)",
+          "LINKED TO registros (cuando se genera ingreso automático)"
+        ]
+      },
+      "registros": {
+        "descripcion": "Movimientos de caja: ingresos, gastos, retiros, arcas de servicios",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "fecha",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "tipo",
+            "tipo": "TEXT",
+            "required": true,
+            "valores": ["ingreso", "egreso", "gasto", "merma", "fiado", "septima", "septima_especial", "arca_ingreso", "arca_egreso", "arca_gasto", "arca_merma"],
+            "descripcion": "Clasificación del movimiento"
+          },
+          {
+            "nombre": "concepto",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Descripción del movimiento"
+          },
+          {
+            "nombre": "monto",
+            "tipo": "REAL",
+            "required": true,
+            "descripcion": "Cantidad de dinero"
+          },
+          {
+            "nombre": "usuario",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Usuario que registró el movimiento"
+          },
+          {
+            "nombre": "categoria",
+            "tipo": "TEXT",
+            "required": false,
+            "valores": ["arca", "pagos_deuda", "general"],
+            "descripcion": "Categorización adicional"
+          },
+          {
+            "nombre": "servicio",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Nombre del arca de servicio (si aplica)"
+          }
+        ],
+        "tipos_movimiento_soportados": {
+          "ingreso": "Dinero que entra a caja (generalmente ingresos extras, no ventas)",
+          "egreso": "Dinero que sale (retiros, anticipos)",
+          "gasto": "Gastos operacionales",
+          "merma": "Pérdidas por daño o deterioro",
+          "fiado": "Registro automático cuando se vende a crédito",
+          "septima": "Contribución religiosa ordinaria",
+          "septima_especial": "Contribución religiosa especial",
+          "arca_ingreso": "Dinero que entra a arca de servicio específico",
+          "arca_egreso": "Dinero que sale de arca de servicio",
+          "arca_gasto": "Gastos del arca de servicio",
+          "arca_merma": "Pérdidas en arca de servicio"
+        },
+        "nota_importante": "Ventas automáticamente generan registros de tipo 'efectivo' en esta tabla"
+      },
+      "septimas": {
+        "descripcion": "Gestión de contribuciones religiosas (séptimas)",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "fecha",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "nombre_padrino",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Nombre de quien contribuye"
+          },
+          {
+            "nombre": "monto",
+            "tipo": "REAL",
+            "required": true,
+            "descripcion": "Monto de la septima"
+          },
+          {
+            "nombre": "usuario_registro",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Usuario que registró"
+          },
+          {
+            "nombre": "pagado",
+            "tipo": "INTEGER DEFAULT 0",
+            "required": false,
+            "valores": [0, 1],
+            "descripcion": "0=pendiente, 1=pagado"
+          },
+          {
+            "nombre": "tipo",
+            "tipo": "TEXT DEFAULT 'normal'",
+            "required": false,
+            "valores": ["normal", "especial"],
+            "descripcion": "Tipo de septima"
+          },
+          {
+            "nombre": "servicio",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Nombre del servicio o evento"
+          }
+        ]
+      },
+      "cortes_caja": {
+        "descripcion": "Registro de cortes de caja (no necesariamente diarios)",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "fecha_apertura",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "fecha_cierre",
+            "tipo": "DATETIME",
+            "required": false
+          },
+          {
+            "nombre": "usuario_apertura",
+            "tipo": "TEXT",
+            "required": true
+          },
+          {
+            "nombre": "usuario_cierre",
+            "tipo": "TEXT",
+            "required": false
+          },
+          {
+            "nombre": "saldo_inicial",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Dinero al abrir la caja"
+          },
+          {
+            "nombre": "saldo_final",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Dinero al cerrar la caja (contado físico)"
+          },
+          {
+            "nombre": "ingresos_efectivo",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Ventas en efectivo + pagos de deudas"
+          },
+          {
+            "nombre": "ingresos_tarjeta",
+            "tipo": "REAL DEFAULT 0",
+            "required": false
+          },
+          {
+            "nombre": "ingresos_transferencia",
+            "tipo": "REAL DEFAULT 0",
+            "required": false
+          },
+          {
+            "nombre": "egresos",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Retiros y gastos"
+          },
+          {
+            "nombre": "diferencia",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "saldo_final - (saldo_inicial + ingresos - egresos)"
+          },
+          {
+            "nombre": "estado",
+            "tipo": "TEXT DEFAULT 'abierto'",
+            "required": false,
+            "valores": ["abierto", "cerrado"],
+            "descripcion": "Estado del corte"
+          },
+          {
+            "nombre": "notas",
+            "tipo": "TEXT",
+            "required": false
+          }
+        ],
+        "formula_balance": "saldo_esperado = saldo_inicial + ingresos_efectivo + ingresos_tarjeta + ingresos_transferencia - egresos",
+        "diferencia_esperada": "diferencia = saldo_final - saldo_esperado"
+      },
+      "cuentas": {
+        "descripcion": "Clientes con historial de compras a crédito",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "nombre_cuenta",
+            "tipo": "TEXT UNIQUE NOT NULL",
+            "required": true,
+            "descripcion": "Nombre del cliente"
+          },
+          {
+            "nombre": "celular",
+            "tipo": "TEXT",
+            "required": false
+          },
+          {
+            "nombre": "estado_cuenta",
+            "tipo": "TEXT DEFAULT 'activo'",
+            "required": false,
+            "valores": ["activo", "inactivo", "bloqueado"],
+            "descripcion": "Estado del cliente"
+          },
+          {
+            "nombre": "saldo_total",
+            "tipo": "REAL DEFAULT 0",
+            "required": false,
+            "descripcion": "Adeudo pendiente"
+          },
+          {
+            "nombre": "fecha_primer_compra",
+            "tipo": "DATETIME",
+            "required": false
+          },
+          {
+            "nombre": "fecha_ultimo_compra",
+            "tipo": "DATETIME",
+            "required": false
+          },
+          {
+            "nombre": "fecha_creacion",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "notas",
+            "tipo": "TEXT",
+            "required": false
+          }
+        ]
+      },
+      "confirmacion_pagos": {
+        "descripcion": "Seguimiento de pagos pendientes de confirmar",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "venta_id",
+            "tipo": "INTEGER",
+            "required": true,
+            "foreign_key": "ventas.id"
+          },
+          {
+            "nombre": "metodo_pago",
+            "tipo": "TEXT",
+            "required": true,
+            "valores": ["efectivo", "tarjeta", "transferencia"]
+          },
+          {
+            "nombre": "comprobante_referencia",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "Número de comprobante o referencia de transferencia"
+          },
+          {
+            "nombre": "estado",
+            "tipo": "TEXT DEFAULT 'pendiente'",
+            "required": false,
+            "valores": ["pendiente", "confirmado", "rechazado"]
+          },
+          {
+            "nombre": "fecha_solicitud",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "fecha_confirmacion",
+            "tipo": "DATETIME",
+            "required": false
+          },
+          {
+            "nombre": "usuario_confirmo",
+            "tipo": "TEXT",
+            "required": false
+          },
+          {
+            "nombre": "notas",
+            "tipo": "TEXT",
+            "required": false
+          }
+        ]
+      },
+      "audit_log": {
+        "descripcion": "Registro de cambios en la BD para auditoría",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "fecha",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "usuario",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Usuario que hizo el cambio"
+          },
+          {
+            "nombre": "accion",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Tipo de acción (INSERT, UPDATE, DELETE)"
+          },
+          {
+            "nombre": "tabla",
+            "tipo": "TEXT",
+            "required": true,
+            "descripcion": "Tabla afectada"
+          },
+          {
+            "nombre": "registro_id",
+            "tipo": "INTEGER",
+            "required": true,
+            "descripcion": "ID del registro modificado"
+          },
+          {
+            "nombre": "datos_anteriores",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "JSON con valores anteriores"
+          },
+          {
+            "nombre": "datos_nuevos",
+            "tipo": "TEXT",
+            "required": false,
+            "descripcion": "JSON con valores nuevos"
+          }
+        ]
+      },
+      "log_errores": {
+        "descripcion": "Registro de errores del sistema",
+        "campos": [
+          {
+            "nombre": "id",
+            "tipo": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "required": true
+          },
+          {
+            "nombre": "fecha",
+            "tipo": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "required": false
+          },
+          {
+            "nombre": "tipo",
+            "tipo": "TEXT",
+            "required": true
+          },
+          {
+            "nombre": "mensaje",
+            "tipo": "TEXT",
+            "required": true
+          },
+          {
+            "nombre": "detalles",
+            "tipo": "TEXT",
+            "required": false
+          },
+          {
+            "nombre": "url",
+            "tipo": "TEXT",
+            "required": false
+          }
+        ]
+      },
+      "configuracion": {
+        "descripcion": "Configuración de la aplicación",
+        "campos": [
+          {
+            "nombre": "clave",
+            "tipo": "TEXT PRIMARY KEY",
+            "required": true
+          },
+          {
+            "nombre": "valor",
+            "tipo": "TEXT",
+            "required": true
+          }
+        ],
+        "valores_iniciales": {
+          "color_tema": "#0d47a1"
+        }
+      }
+    }
+  },
+  "api_endpoints_reportes": {
+    "archivo": "api/api_reportes.php",
+    "versión": "5.2",
+    "seguridad": "Requiere rol admin o superadmin",
+    "reportes_disponibles": [
+      {
+        "nombre": "Inventario de Productos",
+        "id": "inventario_hoy",
+        "descripcion": "Listado completo de productos activos con stock",
+        "columnas": [
+          "ID",
+          "Nombre",
+          "Tipo (Producto/Preparado)",
+          "Código Barras",
+          "Costo Compra",
+          "Precio Venta",
+          "Stock",
+          "Stock Mínimo"
+        ],
+        "subtablas": [
+          "Inventario-Productos (bienes base)",
+          "Inventario-Preparados (tortas, etc)"
+        ],
+        "destacados": [
+          "Colorea en rojo productos con stock bajo",
+          "Totales por categoría"
+        ],
+        "formato_salida": "Excel .xlsx"
+      },
+      {
+        "nombre": "Análisis de Utilidad",
+        "id": "utilidad_productos",
+        "descripcion": "Margen de ganancia por producto",
+        "columnas": [
+          "ID",
+          "Nombre",
+          "Tipo",
+          "Costo Compra",
+          "Precio Venta",
+          "Margen Unitario",
+          "Stock",
+          "Inversión Stock",
+          "Ingreso Potencial",
+          "Utilidad Potencial"
+        ],
+        "formulas": {
+          "margen_unitario": "precio_venta - precio_compra",
+          "inversion_stock": "precio_compra * stock",
+          "ingreso_potencial": "precio_venta * stock",
+          "utilidad_potencial": "margen_unitario * stock"
+        },
+        "formato_salida": "Excel .xlsx"
+      },
+      {
+        "nombre": "Reporte Consolidado",
+        "id": "consolidado",
+        "descripcion": "Resumen ejecutivo de todas las operaciones",
+        "secciones": [
+          {
+            "nombre": "Resumen General",
+            "info": "Timestamp de generación y nota sobre concentración de adeudos"
+          },
+          {
+            "nombre": "Inventario",
+            "metricas": [
+              "Productos activos",
+              "Preparados activos",
+              "Artículos con stock bajo",
+              "Inversión stock",
+              "Ingreso potencial",
+              "Utilidad potencial"
+            ]
+          },
+          {
+            "nombre": "Ventas - Productos",
+            "metricas": [
+              "Registros",
+              "Unidades",
+              "Importe total",
+              "Fiados pendientes",
+              "Monto en fiado"
+            ]
+          },
+          {
+            "nombre": "Ventas - Preparados",
+            "metricas": [
+              "Registros",
+              "Unidades",
+              "Importe total",
+              "Fiados pendientes",
+              "Monto en fiado"
+            ]
+          },
+          {
+            "nombre": "Cuentas",
+            "metricas": [
+              "Total de cuentas",
+              "Activas",
+              "Inactivas",
+              "Bloqueadas",
+              "Saldo total",
+              "Adeudo pendiente"
+            ]
+          },
+          {
+            "nombre": "Cortes de Caja",
+            "metricas": [
+              "Cortes totales",
+              "Abiertos",
+              "Cerrados",
+              "Saldo inicial acumulado",
+              "Ingresos acumulados",
+              "Egresos acumulados",
+              "Saldo final acumulado",
+              "Diferencia acumulada"
+            ]
+          },
+          {
+            "nombre": "Registros",
+            "metricas": [
+              "Registros totales",
+              "Ingresos",
+              "Egresos",
+              "Arca ingresos",
+              "Arca salidas"
+            ]
+          },
+          {
+            "nombre": "Séptimas",
+            "metricas": [
+              "Registros totales",
+              "Pagadas",
+              "Pendientes",
+              "Monto total"
+            ]
+          },
+          {
+            "nombre": "Arcas Servicios",
+            "metricas": [
+              "Servicios con movimiento",
+              "Ingresos",
+              "Egresos",
+              "Gastos",
+              "Mermas",
+              "Neto"
+            ]
+          }
+        ],
+        "subtablas": [
+          "Ventas-Productos (completa)",
+          "Ventas-Preparados (completa)",
+          "Utilidad (análisis de margen)"
+        ],
+        "formato_salida": "Excel .xlsx con múltiples hojas"
+      },
+      {
+        "nombre": "Ventas por Período",
+        "id": "ventas_periodo",
+        "descripcion": "Ventas en un rango de fechas específicas",
+        "parametros": {
+          "desde": "Fecha inicio (YYYY-MM-DD)",
+          "hasta": "Fecha fin (YYYY-MM-DD)"
+        },
+        "formato_salida": "Excel .xlsx"
+      }
+    ],
+    "exportaciones_disponibles": [
+      {
+        "nombre": "Exportar a CSV",
+        "formato": "csv",
+        "accion": "exportar&formato=csv",
+        "descripcion": "Ventas del último mes con detalles de producto",
+        "columnas": [
+          "ID",
+          "Fecha",
+          "Total",
+          "Tipo Pago",
+          "Vendedor",
+          "Producto",
+          "Costo Unitario",
+          "Precio Venta Unitario",
+          "Utilidad Unit.",
+          "Cantidad"
+        ],
+        "destino": "Carpeta Downloads del usuario"
+      },
+      {
+        "nombre": "Exportar a JSON",
+        "formato": "json",
+        "accion": "exportar&formato=json",
+        "descripcion": "Datos completos en formato JSON",
+        "contenido": {
+          "productos": "Todos los activos",
+          "ventas": "Últimos 30 días",
+          "usuarios": "Lista de usuarios",
+          "metadata": "Información de exportación"
+        },
+        "destino": "Carpeta Downloads del usuario"
+      }
+    ]
+  },
+  "api_endpoints_registros": {
+    "archivo": "api/api_registros.php",
+    "versión": "4.1",
+    "descripcion": "Gestión de movimientos de caja (ingresos, gastos, retiros, etc)",
+    "operaciones_disponibles": {
+      "listar": {
+        "descripcion": "Últimos 200 registros",
+        "requiere_admin": false
+      },
+      "crear": {
+        "descripcion": "Nuevo movimiento de caja",
+        "requiere_admin": true,
+        "parametros": [
+          "tipo (ingreso|egreso|gasto|merma|fiado|septima|arca_ingreso|arca_egreso|arca_gasto|arca_merma)",
+          "concepto",
+          "monto",
+          "categoria (opcional)",
+          "servicio (opcional)"
+        ]
+      },
+      "editar": {
+        "descripcion": "Modificar registro existente",
+        "requiere_admin": true,
+        "genera_auditoria": true
+      },
+      "historial": {
+        "descripcion": "Ver cambios realizados a un registro",
+        "requiere_admin": true
+      },
+      "eliminar": {
+        "descripcion": "Borrar un registro",
+        "requiere_admin": true
+      },
+      "eliminar_todos": {
+        "descripcion": "Limpiar todos los registros (CUIDADO)",
+        "requiere_admin": true
+      },
+      "corte_dia": {
+        "descripcion": "Resumen de movimientos del día",
+        "requiere_admin": false,
+        "retorna": {
+          "ventas_efectivo": "Suma de ventas pagadas en efectivo",
+          "ingresos_extra": "Movimientos de tipo ingreso/septima",
+          "gastos": "Movimientos de tipo gasto/egreso/merma",
+          "retiros": "Movimientos de tipo egreso",
+          "fiados_pendientes": "Ventas a crédito no pagadas",
+          "total_caja": "ventas_efectivo + ingresos - gastos - retiros"
+        }
+      }
+    }
+  },
+  "api_endpoints_ventas": {
+    "archivo": "api/api_ventas.php",
+    "versión": "4.1",
+    "descripcion": "Gestión de ventas, fiados y cuentas de clientes",
+    "operaciones_disponibles": {
+      "listar_ventas": {
+        "descripcion": "Últimas 100 ventas con nombre de producto",
+        "retorna": [
+          "id",
+          "fecha",
+          "cantidad",
+          "total",
+          "tipo_pago",
+          "vendedor",
+          "nombre_fiado",
+          "producto_nombre"
+        ]
+      },
+      "listar_fiados": {
+        "descripcion": "Deudores pendientes (agrupados por nombre)",
+        "retorna": [
+          "nombre_fiado",
+          "grupo_fiado",
+          "celular_fiado",
+          "total_deuda",
+          "cantidad_ventas"
+        ]
+      },
+      "pagar_fiado": {
+        "descripcion": "Registrar pago de deuda",
+        "requiere_admin": false,
+        "parametros": [
+          "nombre_fiado",
+          "monto_pagado",
+          "metodo_pago (efectivo|tarjeta|transferencia)",
+          "referencia_pago (opcional)"
+        ],
+        "acciones": [
+          "Marca ventas como pagadas",
+          "Registra ingreso en caja",
+          "Genera auditoría"
+        ]
+      },
+      "cancelar_venta": {
+        "descripcion": "Eliminar venta y devolver stock",
+        "requiere_admin": true,
+        "parametros": ["id (venta_id)"],
+        "acciones": [
+          "Devuelve stock del producto",
+          "Borra venta"
+        ]
+      },
+      "crear_venta": {
+        "descripcion": "Procesar carrito de compra",
+        "requiere_admin": false,
+        "parametros": [
+          "carrito (array de {id, cantidad, precio/precio_venta})",
+          "tipo_pago (efectivo|fiado)",
+          "nombre_fiado (si tipo=fiado)",
+          "grupo_fiado (opcional)",
+          "celular_fiado (opcional)"
+        ],
+        "validaciones": [
+          "Verifica stock disponible",
+          "Normaliza nombre de deudor",
+          "Blinda contra venta sin stock",
+          "Genera registro automático en caja"
+        ]
+      },
+      "ultimas_ventas": {
+        "descripcion": "Últimas ventas (para historial)",
+        "parametros": ["limit (default 5, max 20)"]
+      },
+      "historial_cliente": {
+        "descripcion": "Compras históricas de un cliente fiado",
+        "parametros": ["nombre"],
+        "retorna": [
+          "id",
+          "fecha",
+          "total",
+          "cantidad",
+          "tipo_pago",
+          "fiado_pagado",
+          "producto_nombre"
+        ]
+      },
+      "listar_cuentas": {
+        "descripcion": "Cuentas de clientes",
+        "parametros": [
+          "buscar (opcional, por nombre o celular)",
+          "estado (activo|inactivo|bloqueado, default activo)"
+        ]
+      },
+      "obtener_cuenta": {
+        "descripcion": "Detalles completos de una cuenta",
+        "parametros": ["nombre_cuenta"],
+        "retorna": {
+          "cuenta": "Datos de la cuenta",
+          "historial_compras": "Todas las transacciones",
+          "historial_cambios": "Auditoría de modificaciones"
+        }
+      },
+      "crear_cuenta": {
+        "descripcion": "Nueva cuenta de cliente",
+        "requiere_admin": true,
+        "parametros": [
+          "nombre_cuenta",
+          "celular",
+          "notas"
+        ],
+        "nota": "Evita duplicados (normaliza nombres)"
+      },
+      "editar_cuenta": {
+        "descripcion": "Modificar datos de cuenta",
+        "requiere_admin": true,
+        "parametros": [
+          "id_cuenta",
+          "nombre_cuenta",
+          "celular",
+          "notas"
+        ]
+      },
+      "eliminar_cuenta": {
+        "descripcion": "Desactivar cuenta (soft delete)",
+        "requiere_admin": true,
+        "validacion": "Solo si saldo_total = 0"
+      },
+      "pagar_cuenta": {
+        "descripcion": "Registrar pago contra cuenta",
+        "parametros": [
+          "id_cuenta",
+          "monto_pagado",
+          "metodo_pago",
+          "referencia_pago"
+        ],
+        "acciones": [
+          "Reduce saldo_total de cuenta",
+          "Marca ventas como pagadas",
+          "Registra en auditoría"
+        ]
+      },
+      "agregar_a_cuenta": {
+        "descripcion": "Registrar nueva compra a crédito",
+        "parametros": [
+          "id_cuenta",
+          "monto"
+        ]
+      }
+    },
+    "validaciones_normalizacion": {
+      "nombres_deudores": "TRIM, LOWER, elimina puntos y comas",
+      "objetivo": "Evitar duplicados por diferencias en escritura"
+    }
+  },
+  "api_endpoints_septimas": {
+    "archivo": "api/api_septimas.php",
+    "versión": "5.1",
+    "descripcion": "Gestión de contribuciones religiosas (séptimas)",
+    "operaciones_disponibles": {
+      "listar": {
+        "descripcion": "Últimas 200 séptimas registradas"
+      },
+      "crear": {
+        "descripcion": "Nueva septima",
+        "requiere_admin": true,
+        "parametros": [
+          "nombre_padrino",
+          "monto",
+          "tipo (normal|especial)",
+          "servicio (opcional)"
+        ]
+      },
+      "pagar": {
+        "descripcion": "Marcar septima como pagada",
+        "requiere_admin": true,
+        "parametros": ["id"]
+      },
+      "eliminar": {
+        "descripcion": "Borrar registro de septima",
+        "requiere_admin": true,
+        "parametros": ["id"]
+      }
+    }
+  },
+  "api_endpoints_caja": {
+    "archivo": "api/api_caja.php",
+    "versión": "1.0",
+    "descripcion": "Gestión de cortes de caja (no necesariamente diarios)",
+    "operaciones_disponibles": {
+      "abrir_corte": {
+        "descripcion": "Iniciar nuevo corte",
+        "requiere_admin": true,
+        "parametros": ["saldo_inicial"],
+        "validacion": "Solo una caja abierta a la vez"
+      },
+      "corte_actual": {
+        "descripcion": "Obtener corte abierto con movimientos",
+        "retorna": {
+          "corte": "Datos del corte abierto",
+          "ventas": {
+            "efectivo": "Suma de ventas efectivo",
+            "tarjeta": "Suma de ventas tarjeta",
+            "transferencia": "Suma de transferencias"
+          },
+          "egresos_total": "Gastos y retiros"
+        }
+      },
+      "cerrar_corte": {
+        "descripcion": "Finalizar corte con conteo físico",
+        "requiere_admin": true,
+        "parametros": [
+          "id_corte",
+          "saldo_final (dinero contado)",
+          "notas (opcional)"
+        ],
+        "calcula": {
+          "diferencia": "saldo_final - (saldo_inicial + ingresos - egresos)"
+        },
+        "retorna": "Resumen detallado"
+      },
+      "listar_cortes": {
+        "descripcion": "Histórico de cortes",
+        "requiere_admin": true,
+        "parametros": [
+          "estado (abierto|cerrado|todos)",
+          "limit (default 50)"
+        ]
+      },
+      "eliminar_historial": {
+        "descripcion": "Limpiar cortes cerrados (CUIDADO)",
+        "requiere_admin": true,
+        "validacion": "No debe haber cortes abiertos"
+      },
+      "detalle_corte": {
+        "descripcion": "Ver movimientos de un corte específico",
+        "parametros": ["id_corte"],
+        "retorna": {
+          "corte": "Datos del corte",
+          "ventas": "Detalle de ventas en ese período",
+          "egresos": "Detalle de egresos"
+        }
+      }
+    }
+  },
+  "datos_faltantes_para_junta_hacienda": {
+    "inventario": {
+      "actualmente_se_captura": [
+        "Nombre del producto",
+        "Código de barras",
+        "Precio de compra",
+        "Precio de venta",
+        "Stock actual"
+      ],
+      "faltaría_para_completo": [
+        "Proveedor del producto",
+        "Fecha última compra",
+        "Cantidad mínima de reorden",
+        "Categoría/grupo (carnes, lácteos, etc)",
+        "Fecha de vencimiento (para perecederos)",
+        "Costo de almacenamiento",
+        "Rentabilidad % por producto",
+        "Movimiento de rotación (salida/mes)"
+      ]
+    },
+    "ventas": {
+      "actualmente_se_captura": [
+        "Fecha y hora",
+        "Producto vendido",
+        "Cantidad",
+        "Total",
+        "Tipo de pago (efectivo/fiado/tarjeta/transferencia)",
+        "Vendedor",
+        "Nombre del cliente (si fiado)"
+      ],
+      "faltaría_para_completo": [
+        "Margen bruto por venta",
+        "Descuentos aplicados",
+        "Promociones",
+        "Número de factura/comprobante",
+        "Cliente recurrente o nuevo",
+        "Clasificación de cliente (mayorista/minorista)",
+        "Comisión vendedor",
+        "Rentabilidad neta % de venta"
+      ]
+    },
+    "fiados_deudas": {
+      "actualmente_se_captura": [
+        "Nombre del deudor",
+        "Monto adeudado",
+        "Fecha del fiado",
+        "Grupo/región del deudor",
+        "Teléfono de contacto",
+        "Estado (pagado/pendiente)"
+      ],
+      "faltaría_para_completo": [
+        "Dirección del deudor",
+        "Identificación personal",
+        "Historial de pagos (cumplimiento)",
+        "Días en mora",
+        "Motivo de retraso si existe",
+        "Acuerdos de pago establecidos",
+        "Intereses por mora",
+        "Garantías o referencias"
+      ]
+    },
+    "caja_diaria": {
+      "actualmente_se_captura": [
+        "Saldo inicial",
+        "Saldo final",
+        "Ingresos efectivo",
+        "Ingresos tarjeta",
+        "Ingresos transferencia",
+        "Egresos",
+        "Diferencia",
+        "Notas"
+      ],
+      "faltaría_para_completo": [
+        "Desglose de efectivo por denominación (billetes de 1000, 500, etc)",
+        "Transferencias pendientes de confirmar",
+        "Cheques recibidos",
+        "Movimientos de arcas por servicio",
+        "Depósitos bancarios realizados",
+        "Conciliación bancaria",
+        "Justificación de diferencias",
+        "Firma de responsable"
+      ]
+    },
+    "gastos_operacionales": {
+      "actualmente_se_captura": [
+        "Tipo de gasto (gasto|egreso|merma)",
+        "Concepto",
+        "Monto",
+        "Usuario que registra"
+      ],
+      "faltaría_para_completo": [
+        "Categoría detallada (servicios, mantenimiento, nómina, etc)",
+        "Comprobante/factura",
+        "Proveedor",
+        "Autorización de gasto",
+        "Centro de costo (si aplica)",
+        "Documento de sustento",
+        "Presupuesto vs real"
+      ]
+    },
+    "septimas_contribuciones": {
+      "actualmente_se_captura": [
+        "Nombre del padrino",
+        "Monto",
+        "Tipo (normal/especial)",
+        "Servicio/evento",
+        "Estado (pagado/pendiente)"
+      ],
+      "faltaría_para_completo": [
+        "Fecha de la septima (no solo registro)",
+        "Destinación del fondo",
+        "Comprobante de pago",
+        "Acreedor/beneficiario",
+        "Justificación del gasto",
+        "Presupuesto aprobado"
+      ]
+    },
+    "usuarios_permisos": {
+      "actualmente_se_captura": [
+        "Username",
+        "Role (admin/superadmin/vendedor)"
+      ],
+      "faltaría_para_completo": [
+        "Nombre completo",
+        "Fecha de ingreso",
+        "Departamento",
+        "Salario/comisión",
+        "Documentos (ID, contrato)",
+        "Permisos granulares (qué puede hacer específicamente)",
+        "Auditoría de acciones por usuario",
+        "Última actividad"
+      ]
+    }
+  },
+  "assets_multimedia": {
+    "ubicacion": "assets/img/",
+    "logo_agua_viva": {
+      "nombre_archivo": "logo-agua-viva.png",
+      "encontrado": true,
+      "tamaño_aproximado": "desconocido",
+      "descripcion": "Logo de Agua Viva (organización asociada)"
+    },
+    "otros_assets": [
+      {
+        "nombre": "placeholder.png",
+        "uso": "Imagen placeholder genérica"
+      },
+      {
+        "nombre": "2-85e1f1c2.ico",
+        "uso": "Favicon de la aplicación"
+      }
+    ],
+    "carpetas_adicionales": {
+      "assets/css/": "Hojas de estilo (style.css)",
+      "assets/js/": "Scripts JavaScript (app.js, login.js, download-handler.js)",
+      "assets/vendor/": "Librerías externas (FontAwesome, SweetAlert2)"
+    }
+  },
+  "resumen_ejecutivo": {
+    "modulos_implementados": 7,
+    "modulos": [
+      "Productos e Inventario",
+      "Ventas y Cobros",
+      "Gestión de Fiados",
+      "Cuentas de Clientes",
+      "Movimientos de Caja",
+      "Séptimas/Contribuciones",
+      "Reportes y Exportación"
+    ],
+    "estado_desarrollo": "OPERACIONAL - v10.7",
+    "base_datos": "SQLite (Offline) con soporte fallback a MySQL",
+    "seguridad": "Autenticación por usuario/contraseña, roles de acceso, auditoría completa",
+    "capacidades_criticas": [
+      "Venta online y fiado",
+      "Cortes de caja flexible",
+      "Gestión de deudas normalizada",
+      "Reportes multi-formato (Excel, CSV, JSON)",
+      "Auditoría completa de cambios",
+      "Arcas de servicios independientes"
+    ],
+    "limitaciones_actuales": [
+      "Reportes no incluyen detalles de rentabilidad % por transacción",
+      "Sin gestión de proveedores",
+      "Sin gestión de nómina/salarios",
+      "Sin análisis de estacionalidad",
+      "Sin predicción de demanda",
+      "Auditoría sin interfaces visuales de consulta"
+    ]
+  }
+}

@@ -61,7 +61,7 @@ try {
     // Stock bajo (productos con stock <= umbral o stock_minimo)
     else if ($accion === 'stock_bajo') {
         $umbral = intval($_GET['umbral'] ?? 10);
-        $stmt = $conexion->prepare("SELECT id, nombre, codigo_barras, stock, stock_minimo, precio_venta FROM productos WHERE activo = 1 AND (stock <= ? OR stock <= stock_minimo) ORDER BY stock ASC, nombre ASC");
+        $stmt = $conexion->prepare("SELECT id, nombre, codigo_barras, stock, stock_minimo, precio_compra, precio_venta FROM productos WHERE activo = 1 AND (stock <= ? OR stock <= stock_minimo) ORDER BY stock ASC, nombre ASC");
         $stmt->execute([$umbral]);
         $productos = $stmt->fetchAll();
         echo json_encode(['success' => true, 'productos' => $productos, 'count' => count($productos)]);
@@ -97,6 +97,7 @@ try {
         
         $nombre = trim($_POST['nombre'] ?? '');
         $codigo = trim($_POST['codigo'] ?? '');
+        $precio_compra = floatval($_POST['precio_compra'] ?? 0);
         $precio = $_POST['precio'] ?? 0;
         $stock = $_POST['stock'] ?? 0;
         $tipo_producto = strtolower(trim($_POST['tipo_producto'] ?? 'producto')); // 'producto' o 'preparado'
@@ -107,20 +108,20 @@ try {
         }
         
         // Validación básica: nombre es obligatorio, precio y stock deben ser > 0
-        if (empty($nombre) || $precio <= 0 || $stock < 0) {
+        if (empty($nombre) || $precio <= 0 || $precio_compra < 0 || $stock < 0) {
             error_response('datos_incompletos', ['field' => 'nombre/precio/stock']);
         }
         
         try {
             // Log de intento
-            $pre_log = "INSERT: nombre=$nombre, codigo=$codigo, precio=$precio, stock=$stock, tipo=$tipo_producto\n";
+            $pre_log = "INSERT: nombre=$nombre, codigo=$codigo, compra=$precio_compra, precio=$precio, stock=$stock, tipo=$tipo_producto\n";
             @file_put_contents(dirname(DB_PATH) . DIRECTORY_SEPARATOR . 'api_debug.log',
                 date('Y-m-d H:i:s') . " [api_inventario CREATE] " . $pre_log,
                 FILE_APPEND
             );
             
-            $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_venta, stock, tipo_producto) VALUES (?, ?, ?, ?, ?)");
-            $resultado = $stmt->execute([$nombre, $codigo, floatval($precio), intval($stock), $tipo_producto]);
+            $stmt = $conexion->prepare("INSERT INTO productos (nombre, codigo_barras, precio_compra, precio_venta, stock, tipo_producto) VALUES (?, ?, ?, ?, ?, ?)");
+            $resultado = $stmt->execute([$nombre, $codigo, $precio_compra, floatval($precio), intval($stock), $tipo_producto]);
             
             if (!$resultado) {
                 throw new Exception("Execute retornó false");
@@ -188,6 +189,7 @@ try {
         // Valores nuevos
         $nuevo_nombre = trim($_POST['nombre']);
         $nuevo_codigo = trim($_POST['codigo'] ?? '');
+        $nuevo_precio_compra = floatval($_POST['precio_compra'] ?? ($anterior['precio_compra'] ?? 0));
         $nuevo_precio = floatval($_POST['precio']);
         $nuevo_stock = intval($_POST['stock']);
         $nuevo_tipo = strtolower(trim($_POST['tipo_producto'] ?? 'producto'));
@@ -196,12 +198,17 @@ try {
         if (!in_array($nuevo_tipo, ['producto', 'preparado'])) {
             $nuevo_tipo = 'producto';
         }
+
+        if ($nuevo_precio_compra < 0 || $nuevo_precio < 0 || $nuevo_stock < 0) {
+            error_response('datos_incompletos', ['field' => 'precio/stock']);
+        }
         
         // Actualizar producto
-        $stmt = $conexion->prepare("UPDATE productos SET nombre=?, codigo_barras=?, precio_venta=?, stock=?, tipo_producto=? WHERE id=?");
+        $stmt = $conexion->prepare("UPDATE productos SET nombre=?, codigo_barras=?, precio_compra=?, precio_venta=?, stock=?, tipo_producto=? WHERE id=?");
         $stmt->execute([
             $nuevo_nombre, 
             $nuevo_codigo, 
+            $nuevo_precio_compra,
             $nuevo_precio, 
             $nuevo_stock, 
             $nuevo_tipo, 
@@ -218,6 +225,9 @@ try {
         if (floatval($anterior['precio_venta']) !== $nuevo_precio) {
             registrar_auditoria('productos', $id, 'precio_venta', $anterior['precio_venta'], $nuevo_precio);
         }
+        if (floatval($anterior['precio_compra'] ?? 0) !== $nuevo_precio_compra) {
+            registrar_auditoria('productos', $id, 'precio_compra', $anterior['precio_compra'] ?? 0, $nuevo_precio_compra);
+        }
         if (intval($anterior['stock']) !== $nuevo_stock) {
             registrar_auditoria('productos', $id, 'stock', $anterior['stock'], $nuevo_stock);
         }
@@ -226,6 +236,79 @@ try {
         }
         
         echo json_encode(['success' => true, 'message' => 'Producto Actualizado']);
+
+    // Reabastecer producto: suma stock y actualiza precios
+    } else if ($accion === 'reabastecer' && $esAdmin) {
+        include_once 'csrf.php';
+        require_csrf_or_die();
+
+        $id = intval($_POST['id'] ?? 0);
+        $cantidad = intval($_POST['cantidad'] ?? 0);
+        $precio_compra = floatval($_POST['precio_compra'] ?? 0);
+        $precio_venta = array_key_exists('precio_venta', $_POST) && $_POST['precio_venta'] !== '' ? floatval($_POST['precio_venta']) : null;
+
+        if ($id <= 0 || $cantidad <= 0) {
+            error_response('datos_incompletos', ['field' => 'id/cantidad']);
+        }
+
+        if ($precio_compra < 0 || ($precio_venta !== null && $precio_venta < 0)) {
+            error_response('datos_incompletos', ['field' => 'precio_compra/precio_venta']);
+        }
+
+        $stmt_prev = $conexion->prepare("SELECT * FROM productos WHERE id = ?");
+        $stmt_prev->execute([$id]);
+        $anterior = $stmt_prev->fetch(PDO::FETCH_ASSOC);
+
+        if (!$anterior) {
+            error_response('producto_no_existe');
+        }
+
+        try {
+            $conexion->beginTransaction();
+
+            $nuevo_stock = intval($anterior['stock'] ?? 0) + $cantidad;
+            $nuevo_precio_compra = $precio_compra > 0 ? $precio_compra : floatval($anterior['precio_compra'] ?? 0);
+            $nuevo_precio_venta = $precio_venta !== null ? $precio_venta : floatval($anterior['precio_venta'] ?? 0);
+
+            $stmt = $conexion->prepare("UPDATE productos SET stock = ?, precio_compra = ?, precio_venta = ? WHERE id = ?");
+            $stmt->execute([$nuevo_stock, $nuevo_precio_compra, $nuevo_precio_venta, $id]);
+
+            if (intval($anterior['stock']) !== $nuevo_stock) {
+                registrar_auditoria('productos', $id, 'stock', $anterior['stock'], $nuevo_stock);
+            }
+            if (floatval($anterior['precio_compra'] ?? 0) !== $nuevo_precio_compra) {
+                registrar_auditoria('productos', $id, 'precio_compra', $anterior['precio_compra'] ?? 0, $nuevo_precio_compra);
+            }
+            if (floatval($anterior['precio_venta']) !== $nuevo_precio_venta) {
+                registrar_auditoria('productos', $id, 'precio_venta', $anterior['precio_venta'], $nuevo_precio_venta);
+            }
+
+            $monto_compra = $cantidad * $nuevo_precio_compra;
+            $stmtReg = $conexion->prepare("INSERT INTO registros (tipo, concepto, monto, usuario, categoria, fecha) VALUES ('egreso', ?, ?, ?, 'compra_inventario', datetime('now', 'localtime'))");
+            $stmtReg->execute([
+                "Reabastecimiento: {$anterior['nombre']} (x{$cantidad})",
+                $monto_compra,
+                $_SESSION['usuario'] ?? 'sistema'
+            ]);
+
+            $conexion->commit();
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Producto reabastecido',
+                'producto' => [
+                    'id' => $id,
+                    'stock' => $nuevo_stock,
+                    'precio_compra' => $nuevo_precio_compra,
+                    'precio_venta' => $nuevo_precio_venta
+                ]
+            ]);
+        } catch (Exception $reabastecerError) {
+            if ($conexion->inTransaction()) {
+                $conexion->rollBack();
+            }
+            throw $reabastecerError;
+        }
 
     // Eliminar (Soft Delete para no romper historial)
     } else if ($accion === 'eliminar' && $esAdmin) {
