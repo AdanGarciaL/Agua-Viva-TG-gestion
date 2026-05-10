@@ -1137,15 +1137,12 @@ const ventas = {
                 await Swal.fire({ title: '¡Cobrado!', html: `<h2>Cambio: <b style="color:green">${moneyFmt.format(pago - total)}</b></h2>`, icon: 'success', timer: 3000, background: cfg.bg, color: cfg.color });
             } else if (tipo === 'transferencia') {
                 if (!(await Notificador.confirm('Revisar transferencia', 'Confirma que la transferencia fue recibida antes de cobrar.'))) return;
-            } else {
+            } else if (tipo === 'cuenta') {
                 if(!cuentaNombre) return Notificador.error('Falta cuenta');
-
-                if (tipo === 'cuenta') {
-                    if (!ventas.cuentaSel || ventas.normalizarCuenta(ventas.cuentaSel.nombre_cuenta) !== ventas.normalizarCuenta(cuentaNombre)) {
-                        return Notificador.error('Selecciona una cuenta de la lista');
-                    }
-                    if(!(await Notificador.confirm(`¿Cobrar a cuenta de ${cuentaNombre}?`))) return;
+                if (!ventas.cuentaSel || ventas.normalizarCuenta(ventas.cuentaSel.nombre_cuenta) !== ventas.normalizarCuenta(cuentaNombre)) {
+                    return Notificador.error('Selecciona una cuenta de la lista');
                 }
+                if(!(await Notificador.confirm(`¿Cobrar a cuenta de ${cuentaNombre}?`))) return;
             }
             
             const grupo = document.getElementById('cuenta-grupo').value;
@@ -1170,8 +1167,11 @@ const ventas = {
                 }) 
             }).then(r => r.json()).then(d => {
                 if(d.success) { 
-                    if(tipo !== 'pagado') Notificador.success('✅ Venta a cuenta registrada'); 
-                    else {
+                    if (tipo === 'cuenta') {
+                        Notificador.success('✅ Venta a cuenta registrada');
+                    } else if (tipo !== 'pagado') {
+                        Notificador.success('✅ Venta registrada');
+                    } else {
                         // Sonido de éxito al cobrar
                         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         const oscillator = audioContext.createOscillator();
